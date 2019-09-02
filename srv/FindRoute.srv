@@ -1,0 +1,4 @@
+int32 start_id
+int32 dest_id
+---
+PointFloor[] waypoints

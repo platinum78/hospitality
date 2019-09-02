@@ -2,6 +2,7 @@
 #define GRPAHMAP_CPP_
 
 #include "graphmap.h"
+#include <list>
 
 ////////////////////////// PlaceNode Class Definition //////////////////////////
 
