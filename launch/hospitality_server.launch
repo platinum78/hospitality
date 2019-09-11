@@ -1,4 +1,0 @@
-<launch>
-    <rosparam command="load" file="$(find hospitality)/settings/settings.yaml" />
-    <node pkg="hospitality" name="robot_manager_node" type="robot_manager_node" output="screen" />
-</launch>
