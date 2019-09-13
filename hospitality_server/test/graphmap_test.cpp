@@ -1,6 +1,6 @@
 #include <cstdio>
 #include "../include/graphmap/graphmap.hpp"
-#include "../include/graphmap/geometry_datatypes.hpp"
+#include "../include/geometry_datatypes.hpp"
 
 int main(void)
 {

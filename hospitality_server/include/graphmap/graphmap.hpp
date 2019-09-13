@@ -19,8 +19,6 @@
 #define CONNECTION_ALREADY_EXISTS   4
 #define PATH_NOT_FOUND              5
 
-struct Node;
-struct Connection;
 
 class GraphMap
 {
@@ -37,9 +35,9 @@ public:
     struct Node;
     struct Connection;
 
-private:
-    struct NodeInfo;
-    struct NodeCost;
+public:
+    struct NodePathStat;
+    struct NodePathCost;
 
 public:
     void AddNode(int id, char *const code, PointFloor<double> coordinate);
@@ -106,27 +104,23 @@ struct GraphMap::Connection
     double traversal_time_;
 };
 
-struct GraphMap::NodeCost
+struct GraphMap::NodePathCost
 {
     double cost_;
     Node *node_ptr_;
-    bool operator<(const NodeCost &n) const
+    bool operator<(const NodePathCost &n) const
     {
-        if (cost_ < n.cost_)
-            return true;
-        else
-            return false;
+        if (cost_ < n.cost_) return true;
+        else return false;
     }
-    bool operator>(const NodeCost &n) const
+    bool operator>(const NodePathCost &n) const
     {
-        if (cost_ > n.cost_)
-            return true;
-        else
-            return false;
+        if (cost_ > n.cost_) return true;
+        else return false;
     }
 };
 
-struct GraphMap::NodeInfo
+struct GraphMap::NodePathStat
 {
     int node_state_;
     Node *prev_node_;
@@ -330,14 +324,14 @@ void GraphMap::BFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
     enum { STATE_NEW, STATE_VISITED };
 
     // Initialize map to store node state.
-    std::unordered_map<Node *, NodeInfo> nodeInfo;
+    std::unordered_map<Node *, NodePathStat> nodePathStat;
     std::list<Node *>::iterator node_iter;
     Node *node_ptr;
     
     for (node_iter = node_list_.begin(); node_iter != node_list_.end(); node_iter++)
     {
         node_ptr = *node_iter;
-        nodeInfo[node_ptr] = { STATE_NEW, nullptr };
+        nodePathStat[node_ptr] = { STATE_NEW, nullptr };
     }
 
     // Begin with inserting start node into seek queue.
@@ -346,7 +340,7 @@ void GraphMap::BFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
 
     std::queue<Node *> openNodes;
     openNodes.push(n1_ptr);
-    nodeInfo[n1_ptr].prev_node_ = nullptr;
+    nodePathStat[n1_ptr].prev_node_ = nullptr;
     bool pathFound = false;
 
     while (!openNodes.empty())
@@ -361,8 +355,8 @@ void GraphMap::BFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
             }
 
             node_ptr = openNodes.front(); openNodes.pop();
-        } while (nodeInfo[node_ptr].node_state_ == STATE_VISITED);
-        nodeInfo[node_ptr].node_state_ = STATE_VISITED;
+        } while (nodePathStat[node_ptr].node_state_ == STATE_VISITED);
+        nodePathStat[node_ptr].node_state_ = STATE_VISITED;
         
         // Path to destination found.
         if (node_ptr == n2_ptr)
@@ -372,7 +366,7 @@ void GraphMap::BFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
             while (node_ptr != nullptr)
             {
                 path_container.push_front(node_ptr);
-                node_ptr = nodeInfo[node_ptr].prev_node_;
+                node_ptr = nodePathStat[node_ptr].prev_node_;
             }
             return;
         }
@@ -382,8 +376,8 @@ void GraphMap::BFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
         {
             cnx_ptr = *cnx_iter;
             openNodes.push(cnx_ptr->node_ptr_);
-            if (nodeInfo[cnx_ptr->node_ptr_].node_state_ == STATE_NEW)
-                nodeInfo[cnx_ptr->node_ptr_].prev_node_ = node_ptr;
+            if (nodePathStat[cnx_ptr->node_ptr_].node_state_ == STATE_NEW)
+                nodePathStat[cnx_ptr->node_ptr_].prev_node_ = node_ptr;
         }
 
     }
@@ -397,14 +391,14 @@ void GraphMap::DFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
     enum { STATE_NEW, STATE_VISITED };
 
     // Initialize map to store node state.
-    std::unordered_map<Node *, NodeInfo> nodeInfo;
+    std::unordered_map<Node *, NodePathStat> nodePathStat;
     std::list<Node *>::iterator node_iter;
     Node *node_ptr;
     
     for (node_iter = node_list_.begin(); node_iter != node_list_.end(); node_iter++)
     {
         node_ptr = *node_iter;
-        nodeInfo[node_ptr] = (NodeInfo){ STATE_NEW, nullptr };
+        nodePathStat[node_ptr] = (NodePathStat){ STATE_NEW, nullptr };
     }
 
     // Begin with inserting start node into open stack.
@@ -413,7 +407,7 @@ void GraphMap::DFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
 
     std::stack<Node *> openNodes;
     openNodes.push(n1_ptr);
-    nodeInfo[n1_ptr].prev_node_ = nullptr;
+    nodePathStat[n1_ptr].prev_node_ = nullptr;
     bool pathFound = false;
 
     while (!openNodes.empty())
@@ -428,8 +422,8 @@ void GraphMap::DFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
             }
 
             node_ptr = openNodes.top(); openNodes.pop();
-        } while (nodeInfo[node_ptr].node_state_ == STATE_VISITED);
-        nodeInfo[node_ptr].node_state_ = STATE_VISITED;
+        } while (nodePathStat[node_ptr].node_state_ == STATE_VISITED);
+        nodePathStat[node_ptr].node_state_ = STATE_VISITED;
         
         // Path to destination found.
         if (node_ptr == n2_ptr)
@@ -439,7 +433,7 @@ void GraphMap::DFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
             while (node_ptr != nullptr)
             {
                 path_container.push_front(node_ptr);
-                node_ptr = nodeInfo[node_ptr].prev_node_;
+                node_ptr = nodePathStat[node_ptr].prev_node_;
             }
             return;
         }
@@ -449,8 +443,8 @@ void GraphMap::DFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
         {
             cnx_ptr = *cnx_iter;
             openNodes.push(cnx_ptr->node_ptr_);
-            if (nodeInfo[cnx_ptr->node_ptr_].node_state_ == STATE_NEW)
-                nodeInfo[cnx_ptr->node_ptr_].prev_node_ = node_ptr;
+            if (nodePathStat[cnx_ptr->node_ptr_].node_state_ == STATE_NEW)
+                nodePathStat[cnx_ptr->node_ptr_].prev_node_ = node_ptr;
         }
     }
 
@@ -463,22 +457,22 @@ void GraphMap::DijkstraPath(std::list<Node *> &path_container, Node *n1_ptr, Nod
     enum { STATE_NEW, STATE_OPEN, STATE_VISITED };
 
     // Initialize map to store node states and previous nodes.
-    std::unordered_map<Node *, NodeInfo> nodeInfo;
+    std::unordered_map<Node *, NodePathStat> nodePathStat;
     Node *node_ptr;
     double node_cost, node_cost_new;
     
     for (std::list<Node *>::iterator iter = node_list_.begin(); iter != node_list_.end(); iter++)
     {
         node_ptr = *iter;
-        nodeInfo[node_ptr] = (NodeInfo){ STATE_NEW, nullptr, __DBL_MAX__ };
+        nodePathStat[node_ptr] = (NodePathStat){ STATE_NEW, nullptr, __DBL_MAX__ };
     }
 
     // Begin with inserting start node into open stack.
-    std::priority_queue<NodeCost, std::vector<NodeCost>, std::greater<NodeCost> > openNodes;
-    NodeCost nodeCost = (NodeCost){ 0.0, n1_ptr };
+    std::priority_queue<NodePathCost, std::vector<NodePathCost>, std::greater<NodePathCost> > openNodes;
+    NodePathCost nodeCost = (NodePathCost){ 0.0, n1_ptr };
     openNodes.push(nodeCost);
-    nodeInfo[n1_ptr].prev_node_ = nullptr;
-    nodeInfo[n1_ptr].cost_ = 0;
+    nodePathStat[n1_ptr].prev_node_ = nullptr;
+    nodePathStat[n1_ptr].cost_ = 0;
 
     while (!openNodes.empty())
     {
@@ -494,8 +488,8 @@ void GraphMap::DijkstraPath(std::list<Node *> &path_container, Node *n1_ptr, Nod
             nodeCost = openNodes.top(); openNodes.pop();
             node_ptr = nodeCost.node_ptr_;
             node_cost = nodeCost.cost_;
-        } while (nodeInfo[node_ptr].node_state_ == STATE_VISITED);
-        nodeInfo[node_ptr].node_state_ = STATE_VISITED;
+        } while (nodePathStat[node_ptr].node_state_ == STATE_VISITED);
+        nodePathStat[node_ptr].node_state_ = STATE_VISITED;
         
         // Path to destination found.
         if (node_ptr == n2_ptr)
@@ -505,7 +499,7 @@ void GraphMap::DijkstraPath(std::list<Node *> &path_container, Node *n1_ptr, Nod
             while (node_ptr != nullptr)
             {
                 path_container.push_front(node_ptr);
-                node_ptr = nodeInfo[node_ptr].prev_node_;
+                node_ptr = nodePathStat[node_ptr].prev_node_;
             }
             return;
         }
@@ -517,18 +511,17 @@ void GraphMap::DijkstraPath(std::list<Node *> &path_container, Node *n1_ptr, Nod
         for (cnx_iter = node_ptr->connections_.begin(); cnx_iter != node_ptr->connections_.end(); cnx_iter++)
         {
             cnx_ptr = *cnx_iter;
-            printf("%d \n", cnx_ptr->node_ptr_->id_);
             if (cost_type == COST_DIST)
                 node_cost_new = node_cost + cnx_ptr->traversal_dist_;
             else if (cost_type == COST_TIME)
                 node_cost_new = node_cost + cnx_ptr->traversal_time_;
 
 
-            if (node_cost_new < nodeInfo[cnx_ptr->node_ptr_].cost_)
+            if (node_cost_new < nodePathStat[cnx_ptr->node_ptr_].cost_)
             {
-                nodeCost = (NodeCost){ node_cost_new, cnx_ptr->node_ptr_ };
+                nodeCost = (NodePathCost){ node_cost_new, cnx_ptr->node_ptr_ };
                 openNodes.push(nodeCost);
-                nodeInfo[cnx_ptr->node_ptr_] = (NodeInfo){ STATE_OPEN, node_ptr, node_cost_new };
+                nodePathStat[cnx_ptr->node_ptr_] = (NodePathStat){ STATE_OPEN, node_ptr, node_cost_new };
             }
         }
 
