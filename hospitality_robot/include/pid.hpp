@@ -1,7 +1,6 @@
 #ifndef PID_HPP_
 #define PID_HPP_
 
-#include <ctime>
 
 class PID
 {
@@ -19,7 +18,7 @@ public:
 private:
     double kp_, ki_, kd_, hz_, period_;
     double target_, output_;
-    double error_, error_integral_, error_derivative_;
+    double error_, error_prev_, error_integral_, error_derivative_;
 };
 
 PID::PID(double kp, double ki, double kd, double hz)
@@ -44,6 +43,11 @@ double PID::ComputePID()
 {
     double pidVal = 0;
     error_ = target_ - output_;
+    error_integral_ += error_ * period_;
+    error_derivative_ = (error_ - error_prev_) / period_;
+    pidVal = error_ * kp_ + error_integral_ * ki_ + error_derivative_ * kd_;
+    error_prev_ = error_;
+    return pidVal;
 }
 
 #endif

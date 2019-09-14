@@ -58,7 +58,7 @@ Eigen::Vector3d RepulsiveController::ComputeRepulsion(int input_frame = path_pla
     double fScalar, fX, fY, fNetX = 0, fNetY = 0;
     for (int i = 0; i < 360; i++)
     {
-        dist = double(range_[i]);
+        dist = double(scan_ranges_[i]);
         fScalar = 1 / pow(dist, force_exp_);
         fX = fScalar * cos_[i];
         fY = fScalar * sin_[i];
