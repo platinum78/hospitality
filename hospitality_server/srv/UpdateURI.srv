@@ -1,5 +1,0 @@
-int32 robot_id
-string robot_tcp_ip
-int32 robot_tcp_port
----
-bool ack

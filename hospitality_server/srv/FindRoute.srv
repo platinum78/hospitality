@@ -1,6 +1,0 @@
-int32 start_id
-int32 dest_id
----
-float64 distance
-float64 travel_time
-PointFloor[] waypoints

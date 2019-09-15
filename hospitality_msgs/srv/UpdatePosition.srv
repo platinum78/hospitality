@@ -1,0 +1,4 @@
+int32 robot_id
+PointFloor position
+---
+bool ack

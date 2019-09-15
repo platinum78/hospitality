@@ -3,7 +3,7 @@
 
 #include <ros/ros.h>
 #include <string>
-#include <hospitality/PointFloor.h>
+#include <hospitality_msgs/PointFloor.h>
 
 struct RobotInfo
 {
@@ -14,7 +14,7 @@ struct RobotInfo
     std::string robot_name_;
     std::string robot_tcp_ip_;
     int robot_tcp_port_;
-    hospitality::PointFloor position_;
+    hospitality_msgs::PointFloor position_;
 
 };
 

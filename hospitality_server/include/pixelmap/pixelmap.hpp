@@ -31,9 +31,16 @@ public:
     struct PixelIdx;
     struct PixelInfo;
     struct PixelPathCost;
+    struct PixelPathHCost;
     struct PixelPathStat;
 
 public:
+    enum { PATH_STATE_NEW, PATH_STATE_OPEN, PATH_STATE_VISITED };
+    enum { PIXEL_STATE_FREE, PIXEL_STATE_BLOCKED, PIXEL_STATE_AMBIGUOUS };
+    enum { PATH_REDUCTION_STRAIGHT_LINE, PATH_REDUCTION_LOS };
+
+public:
+    void SetOriginPixel(int row, int col);
     void ListDir(const char *dir);
     int ReadMapBmp(const char *bmp_path);
     int ReadMapBmp(const char *bmp_path, double roi_height, double resolution);
@@ -53,8 +60,8 @@ private:
     PointFloor<double> GetPixelCenterpoint(int row, int col, int floor);
 
 private:
-    const int delta_[8][2] = { {1, 0},      {1, 1},     {0, 1},     {-1, 1},
-                               {-1, 0},     {-1, -1},   {0, -1},    {1, -1} };
+    const int delta_[8][2] = { {0, 1},      {-1, 1},    {-1, 0},    {-1, -1},
+                               {0, -1},     {1, -1},   {1, 0},    {1, 1} };
 
 public:
     int FindRoute(std::list<PixelIdx> &path_container, PixelIdx &start, PixelIdx &dest);
@@ -66,6 +73,13 @@ public:
 
 private:
     double DiagManhattan(PixelIdx &start, PixelIdx &dest);
+
+public:
+    void ReducePath(std::list<PixelIdx> &path_container, int mode);
+
+private:
+    void PathReductionLOS(std::list<PixelIdx> &path_container);
+    void PathReductionStraightLine(std::list<PixelIdx> &path_container);
 
 private:
     std::map<int, int> floor_idx_table_;
@@ -103,6 +117,12 @@ struct PixelMap::PixelIdx
     {
         return !(row == idx.row && col == idx.col);
     }
+    void operator=(const PixelIdx &idx)
+    {
+        row = idx.row;
+        col = idx.col;
+        floor = idx.floor;
+    }
 };
 
 struct PixelMap::PixelInfo
@@ -114,21 +134,52 @@ struct PixelMap::PixelInfo
 struct PixelMap::PixelPathCost
 {
     double cost_;
-    double heuristic_;
     PixelIdx idx_;
     bool operator<(const PixelPathCost &p) const
     {
-        if (cost_ + heuristic_ < p.cost_ + p.heuristic_)
+        if (cost_ < p.cost_)
             return true;
         else
             return false;
     }
     bool operator>(const PixelPathCost &p) const
     {
+        if (cost_ > p.cost_)
+            return true;
+        else
+            return false;
+    }
+    void operator=(const PixelPathCost &p)
+    {
+        cost_ = p.cost_;
+        idx_ = p.idx_;
+    }
+};
+
+struct PixelMap::PixelPathHCost
+{
+    double cost_;
+    double heuristic_;
+    PixelIdx idx_;
+    bool operator<(const PixelPathHCost &p) const
+    {
+        if (cost_ + heuristic_ < p.cost_ + p.heuristic_)
+            return true;
+        else
+            return false;
+    }
+    bool operator>(const PixelPathHCost &p) const
+    {
         if (cost_ + heuristic_ > p.cost_ + p.heuristic_)
             return true;
         else
             return false;
+    }
+    void operator=(const PixelPathHCost &p)
+    {
+        cost_ = p.cost_;
+        heuristic_ = p.heuristic_;
+        idx_ = p.idx_;
     }
 };
 
@@ -138,22 +189,18 @@ struct PixelMap::PixelPathStat
     double cost_;
     double heuristic_;
     PixelIdx prev_pixel_;
-    enum { STATE_NEW, STATE_OPEN, STATE_VISITED };
 };
 
 struct PixelMap::Pixel
 {
-    enum { STATE_FREE, STATE_BLOCKED, STATE_AMBIGUOUS };
     byte state;
-    byte closest_wall_dist;
     PixelInfo *pixel_info;
     PixelPathStat path_stat;
     Pixel()
     {
-        state = STATE_FREE;
-        closest_wall_dist = 255;
+        state = PIXEL_STATE_FREE;
         pixel_info = nullptr;
-        path_stat.pixel_state_ = PixelPathStat::STATE_NEW;
+        path_stat.pixel_state_ = PATH_STATE_NEW;
         path_stat.cost_ = __DBL_MAX__;
         path_stat.heuristic_ = 0.0;
         path_stat.prev_pixel_ = (PixelIdx){ -1, -1, -1 };
@@ -226,9 +273,9 @@ int PixelMap::ReadMapBmp(const char *path)
             {
                 gray = (int(image(c, r)->Red) + int(image(c, r)->Green) + int(image(c, r)->Blue)) / 3;
                 if (gray < 127)
-                    pixel_map_[mapIdx][r][c].state = Pixel::STATE_BLOCKED;
+                    pixel_map_[mapIdx][r][c].state = PIXEL_STATE_BLOCKED;
                 else
-                    pixel_map_[mapIdx][r][c].state = Pixel::STATE_FREE;
+                    pixel_map_[mapIdx][r][c].state = PIXEL_STATE_FREE;
             }
         }
     }
@@ -331,37 +378,42 @@ double PixelMap::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &sta
     {
         for (int j = 0; j < pixel_width_; j++)
         {
-            pixel_map_[startMapIdx][i][j].path_stat = (PixelPathStat){ PixelPathStat::STATE_NEW, 0.0, 0.0, pxIdx };
-            if (destMapIdx != startMapIdx)
-                pixel_map_[startMapIdx][i][j].path_stat = (PixelPathStat){ PixelPathStat::STATE_NEW, 0.0, 0.0, pxIdx };
+            pixel_map_[startMapIdx][i][j].path_stat.pixel_state_ = PATH_STATE_NEW;
+            // pixel_map_[destMapIdx][i][j].path_stat.pixel_state_ = PATH_STATE_NEW;
         }
     }
+    printf("Finding destination... \n");
     
-    // Start from pushing starting node into priority queue.
     std::priority_queue<PixelPathCost, std::vector<PixelPathCost>, std::greater<PixelPathCost> > openPixels;
-    pxIdx = start;
-    pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.cost_ = 0;
-    PixelPathCost pxPathCost = (PixelPathCost){ 0.0, 0.0, pxIdx };
-    openPixels.push(pxPathCost);
     double currentPathCost, newPathCost, totalPathCost;
+    
+    pxIdx = start;
+    pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.cost_ = 0.0;
+    PixelPathCost pxPathCost = (PixelPathCost){ 0.0, pxIdx };
+    openPixels.push(pxPathCost);
+    const double SQRT2 = sqrt(2.0);
+
     while (!openPixels.empty())
     {
         pxPathCost = openPixels.top(); openPixels.pop();
         pxIdx = pxPathCost.idx_;
         Pixel &pxCur = pixel_map_[startMapIdx][pxIdx.row][pxIdx.col];
-        pxCur.path_stat.pixel_state_ = PixelPathStat::STATE_VISITED;
+        pxCur.path_stat.pixel_state_ = PATH_STATE_VISITED;
         currentPathCost = pxPathCost.cost_;
 
         // Found destination; return path and terminate.
         if (pxIdx == dest)
         {
-            totalPathCost = pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.cost_;
+            printf("Destination found! Constructing path list... \n");
+            totalPathCost = pxCur.path_stat.cost_;
             path_container.resize(0);
             do
             {
+                // printf("%d %d \n", pxIdx.row, pxIdx.col);
                 path_container.push_front(pxIdx);
                 pxIdx = pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.prev_pixel_;
             } while (pxIdx.row != -1);
+            printf("Finished! \n");
             return totalPathCost;
         }
 
@@ -372,24 +424,26 @@ double PixelMap::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &sta
             int col = pxIdx.col + delta_[i][1];
             Pixel &pxExp = pixel_map_[startMapIdx][row][col];
 
-            if (IsIdxInMap(row, col) && pxExp.state == Pixel::STATE_FREE && 
-                pxExp.path_stat.pixel_state_ != PixelPathStat::STATE_VISITED)
+            if (IsIdxInMap(row, col) && pxExp.state == PIXEL_STATE_FREE && 
+                pxExp.path_stat.pixel_state_ != PATH_STATE_VISITED)
             {
-                newPathCost = currentPathCost + sqrt(delta_[i][0] * delta_[i][0] + delta_[i][1] * delta_[i][1]);
-                if (pxExp.path_stat.pixel_state_ == PixelPathStat::STATE_NEW || newPathCost < pxExp.path_stat.cost_)
+                newPathCost = currentPathCost + ((i % 2) ? SQRT2 : 1.0);
+                if (pxExp.path_stat.pixel_state_ == PATH_STATE_NEW ||
+                    newPathCost < pxExp.path_stat.cost_)
                 {
-                    printf("(%4d, %4d): %.3lf \n", row, col, newPathCost);
+                    // printf("(%4d, %4d): %.3lf \n", row, col, newPathCost);
                     pxExp.path_stat.cost_ = newPathCost;
-                    pxExp.path_stat.pixel_state_ = PixelPathStat::STATE_OPEN;
+                    pxExp.path_stat.pixel_state_ = PATH_STATE_OPEN;
                     pxExp.path_stat.prev_pixel_ = pxIdx;
-                    pxIdx.row = row; pxIdx.col = col; pxIdx.floor = startMapIdx;
-                    openPixels.push((PixelPathCost){ newPathCost, 0.0, pxIdx });
+                    pxPathCost.cost_ = newPathCost; pxPathCost.idx_ = pxIdx;
+                    openPixels.push((PixelPathCost){ newPathCost, (PixelIdx){ row, col, startMapIdx } });
                 }
             }
         }
     }
 
     path_container.resize(0);
+    printf("Failed to find destination! \n");
     throw NoPathException("No path found.");
 }
 
@@ -402,20 +456,20 @@ double PixelMap::AStarPath(std::list<PixelIdx> &path_container, PixelIdx &start,
     {
         for (int j = 0; j < pixel_width_; j++)
         {
-            pixel_map_[startMapIdx][i][j].path_stat = (PixelPathStat){ PixelPathStat::STATE_NEW, 0.0, 0.0, (PixelIdx){ -1, -1, 0 } };
+            pixel_map_[startMapIdx][i][j].path_stat = (PixelPathStat){ PATH_STATE_NEW, 0.0, 0.0, (PixelIdx){ -1, -1, 0 } };
             if (destMapIdx != startMapIdx)
-                pixel_map_[startMapIdx][i][j].path_stat = (PixelPathStat){ PixelPathStat::STATE_NEW, 0.0, 0.0, (PixelIdx){ -1, -1, 0 } };
+                pixel_map_[startMapIdx][i][j].path_stat = (PixelPathStat){ PATH_STATE_NEW, 0.0, 0.0, (PixelIdx){ -1, -1, 0 } };
         }
     }
     
     // Start from pushing starting node into priority queue.
-    std::priority_queue<PixelPathCost, std::vector<PixelPathCost>, std::greater<PixelPathCost> > openPixels;
+    std::priority_queue<PixelPathHCost, std::vector<PixelPathHCost>, std::greater<PixelPathHCost> > openPixels;
     double currentPathCost, newPathCost, totalPathCost;
 
     PixelIdx pxIdx = start;
     pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.cost_ = 0;
-    pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.pixel_state_ = PixelPathStat::STATE_OPEN;
-    PixelPathCost pxPathCost = (PixelPathCost){ 0.0, DiagManhattan(start, dest), pxIdx };
+    pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.pixel_state_ = PATH_STATE_OPEN;
+    PixelPathHCost pxPathCost = (PixelPathHCost){ 0.0, DiagManhattan(start, dest), pxIdx };
     openPixels.push(pxPathCost);
     double termCond = false;
 
@@ -427,9 +481,9 @@ double PixelMap::AStarPath(std::list<PixelIdx> &path_container, PixelIdx &start,
             pxIdx = pxPathCost.idx_;
             PixelPathStat &pathStat = pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat;
 
-            if (pathStat.pixel_state_ == PixelPathStat::STATE_OPEN)
+            if (pathStat.pixel_state_ == PATH_STATE_OPEN)
                 break;
-            if (pathStat.pixel_state_ == PixelPathStat::STATE_VISITED)
+            if (pathStat.pixel_state_ == PATH_STATE_VISITED)
                 if (pxPathCost.cost_ + pxPathCost.heuristic_ < pathStat.cost_ + pathStat.heuristic_)
                 {
                     pathStat.cost_ = pxPathCost.cost_;
@@ -443,7 +497,7 @@ double PixelMap::AStarPath(std::list<PixelIdx> &path_container, PixelIdx &start,
         }
         if (termCond)
             break;
-        pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.pixel_state_ = PixelPathStat::STATE_VISITED;
+        pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.pixel_state_ = PATH_STATE_VISITED;
 
         // Found destination; return path and terminate.
         if (pxIdx == dest)
@@ -466,18 +520,17 @@ double PixelMap::AStarPath(std::list<PixelIdx> &path_container, PixelIdx &start,
             Pixel &pxCur = pixel_map_[startMapIdx][pxIdx.row][pxIdx.col];
             Pixel &pxExp = pixel_map_[startMapIdx][row][col];
 
-            if (IsIdxInMap(row, col) && pxExp.state == Pixel::STATE_FREE &&
-                pxExp.path_stat.pixel_state_ != PixelPathStat::STATE_VISITED)
+            if (IsIdxInMap(row, col) && pxExp.state == PIXEL_STATE_FREE &&
+                pxExp.path_stat.pixel_state_ != PATH_STATE_VISITED)
             {
                 newPathCost = pxCur.path_stat.cost_ + sqrt(delta_[i][0] * delta_[i][0] + delta_[i][1] * delta_[i][1]);
-                // printf("(%4d, %4d): %.3lf, %.3lf \n", row, col, newPathCost, DiagManhattan(pxIdx, dest));
-                if (pxExp.path_stat.pixel_state_ == PixelPathStat::STATE_NEW || newPathCost < pxExp.path_stat.cost_)
+                if (pxExp.path_stat.pixel_state_ == PATH_STATE_NEW || newPathCost < pxExp.path_stat.cost_)
                 {
+                    printf("(%4d, %4d): %.3lf, %.3lf \n", row, col, newPathCost, DiagManhattan(pxIdx, dest));
                     pxExp.path_stat.cost_ = newPathCost;
-                    pxExp.path_stat.pixel_state_ = PixelPathStat::STATE_OPEN;
+                    pxExp.path_stat.pixel_state_ = PATH_STATE_OPEN;
                     pxExp.path_stat.prev_pixel_ = pxIdx;
-                    pxIdx.row = row; pxIdx.col = col; pxIdx.floor = startMapIdx;
-                    openPixels.push((PixelPathCost){ newPathCost, DiagManhattan(pxIdx, dest), pxIdx });
+                    openPixels.push((PixelPathHCost){ newPathCost, DiagManhattan(pxIdx, dest), (PixelIdx){ row, col, startMapIdx } });
                 }
             }
         }
@@ -498,6 +551,44 @@ double PixelMap::DiagManhattan(PixelIdx &start, PixelIdx &dest)
     double remnLen = (dr > dc ? dr - dc : dc - dr);
 
     return diagLen * sqrt(2) + remnLen;
+}
+
+void PixelMap::ReducePath(std::list<PixelIdx> &path_container, int mode = PATH_REDUCTION_STRAIGHT_LINE)
+{
+    if (mode == PATH_REDUCTION_STRAIGHT_LINE)
+        PathReductionStraightLine(path_container);
+}
+
+void PixelMap::PathReductionStraightLine(std::list<PixelIdx> &path_container)
+{
+    std::list<PixelIdx>::iterator iterHead, iterTail;
+    iterHead = iterTail = path_container.begin(); iterHead++;
+
+    int dr = iterHead->row - iterTail->row;
+    int dc = iterHead->col - iterTail->col;
+    std::advance(iterTail, 1);
+    iterHead = iterTail;
+    std::advance(iterHead, 1);
+
+    while (iterHead != path_container.end())
+    {
+        if (iterHead->row - iterTail->row == dr && iterHead->col - iterTail->col == dc)
+        {
+            do
+            {
+                path_container.erase(iterTail++);
+                iterHead = iterTail; iterHead++;
+            } while (iterHead != path_container.end() && 
+                     (iterHead->row - iterTail->row) == dr &&
+                     (iterHead->col - iterTail->col) == dc);
+        }
+        else
+        {
+            dr = iterHead->row - iterTail->row;
+            dc = iterHead->col - iterTail->col;
+            iterTail++; iterHead = iterTail; iterHead++;
+        }
+    }
 }
 
 PixelMap::~PixelMap()

@@ -1,0 +1,13 @@
+path_controllers:
+    repulsive_controller:
+        gravitational_constant:     1.0
+        repulsion_exponent:         1.5
+        control_frequency:          20
+
+        kp_linear:                  20
+        ki_linear:                  1
+        kd_linear:                  1
+        
+        kp_angular:                 20
+        ki_angular:                 1
+        kd_angular:                 1

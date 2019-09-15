@@ -5,9 +5,9 @@
 
 #include <ros/ros.h>
 #include <xmlrpcpp/XmlRpcValue.h>
-#include <hospitality/PointFloor.h>
-#include <hospitality/UpdatePosition.h>
-#include <hospitality/UpdateURI.h>
+#include <hospitality_msgs/PointFloor.h>
+#include <hospitality_msgs/UpdatePosition.h>
+#include <hospitality_msgs/UpdateURI.h>
 
 #include "../include/robot_info/robot_info.hpp"
 
@@ -18,10 +18,10 @@ public:
     void ExecLoop(int frequency);
 
 private:
-    bool UpdatePositionHandler(hospitality::UpdatePositionRequest &req,
-                               hospitality::UpdatePositionResponse &res);
-    bool UpdateURIHandler(hospitality::UpdateURIRequest &req,
-                          hospitality::UpdateURIResponse &res);
+    bool UpdatePositionHandler(hospitality_msgs::UpdatePositionRequest &req,
+                               hospitality_msgs::UpdatePositionResponse &res);
+    bool UpdateURIHandler(hospitality_msgs::UpdateURIRequest &req,
+                          hospitality_msgs::UpdateURIResponse &res);
 
 private:
     ros::NodeHandle n;
@@ -65,8 +65,8 @@ RobotInfoNode::RobotInfoNode()
     update_uri_service_ = n.advertiseService("/update_uri_service", &RobotInfoNode::UpdateURIHandler, this);
 }
 
-bool RobotInfoNode::UpdatePositionHandler(hospitality::UpdatePositionRequest &req,
-                                             hospitality::UpdatePositionResponse &res)
+bool RobotInfoNode::UpdatePositionHandler(hospitality_msgs::UpdatePositionRequest &req,
+                                             hospitality_msgs::UpdatePositionResponse &res)
 {
     int robotID = static_cast<int>(req.robot_id);
     robot_info_[robotID].position_ = req.position;
@@ -74,8 +74,8 @@ bool RobotInfoNode::UpdatePositionHandler(hospitality::UpdatePositionRequest &re
     return true;
 }
 
-bool RobotInfoNode::UpdateURIHandler(hospitality::UpdateURIRequest &req,
-                                        hospitality::UpdateURIResponse &res)
+bool RobotInfoNode::UpdateURIHandler(hospitality_msgs::UpdateURIRequest &req,
+                                        hospitality_msgs::UpdateURIResponse &res)
 {
     int robotID = static_cast<int>(req.robot_id);
     robot_info_[robotID].robot_tcp_ip_.assign(req.robot_tcp_ip);
