@@ -1,18 +1,26 @@
 #ifndef TB3_TOPIC_MANAGER_HPP_
 #define TB3_TOPIC_MANAGER_HPP_
 
+#include <vector>
+#include <list>
+
 #include "ros/ros.h"
-#include "std_msgs/Int32.h"
-#include "geometry_msgs/Pose.h"
-#include "geometry_msgs/Twist.h"
-#include "sensor_msgs/LaserScan.h"
-#include "nav_msgs/Odometry.h"
 #include "tf/tf.h"
 #include "tf/LinearMath/Quaternion.h"
 #include "tf/transform_datatypes.h"
 #include "tf/LinearMath/Matrix3x3.h"
 
+#include "std_msgs/Int32.h"
+#include "geometry_msgs/Pose.h"
+#include "geometry_msgs/Twist.h"
+#include "sensor_msgs/LaserScan.h"
+#include "nav_msgs/Odometry.h"
 #include "hospitality_msgs/Waypoint.h"
+
+#include "std_srvs/Trigger.h"
+#include "hospitality_msgs/PointFloor.h"
+#include "hospitality_msgs/SetMode.h"
+#include "hospitality_msgs/SetPath.h"
 
 #include "robot_state_variables.hpp"
 
@@ -40,10 +48,12 @@ private:
     ros::Subscriber scan_subscriber_;
     ros::Subscriber odom_subscriber_;
     ros::ServiceServer set_mode_service_;
-    ros::ServiceServer traverse_path_service_;
+    ros::ServiceServer set_path_service_;
 
 private:
     T_controller controller_;
+    std::list<hospitality_msgs::PointFloor> path_;
+    int op_mode_;
 
 public: // Sensor measurements from Turtlebot3.
     std::vector<float> scan_ranges_;
@@ -54,6 +64,12 @@ public: // Sensor measurements from Turtlebot3.
 private:
     void ScanCallback(const sensor_msgs::LaserScan::ConstPtr &);
     void OdomCallback(const nav_msgs::Odometry::ConstPtr &);
+
+private:
+    bool SetModeHandler(hospitality_msgs::SetMode::Request &req,
+                        hospitality_msgs::SetMode::Response &resp);
+    bool SetPathHandler(hospitality_msgs::SetPath::Request &req,
+                        hospitality_msgs::SetPath::Response &resp);
 };
 
 
@@ -68,6 +84,8 @@ TB3DriveNode<T_controller>::TB3DriveNode()
     cmd_vel_publisher_ = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
     scan_subscriber_ = n.subscribe("/scan", 1000, &TB3DriveNode::ScanCallback, this);
     odom_subscriber_ = n.subscribe("/odom", 1000, &TB3DriveNode::OdomCallback, this);
+    set_mode_service_ = n.advertiseService("/set_mode_service", &TB3DriveNode<T_controller>::SetModeHandler, this);
+    set_path_service_ = n.advertiseService("/set_path_service", &TB3DriveNode<T_controller>::SetPathHandler, this);
     controller_.GetParams(n);
 }
 
@@ -95,6 +113,34 @@ void TB3DriveNode<T_controller>::OdomCallback(const nav_msgs::Odometry::ConstPtr
     orientation_.x = roll;
     orientation_.y = pitch;
     orientation_.z = yaw;
+}
+
+template <typename T_controller>
+bool TB3DriveNode<T_controller>::SetModeHandler(hospitality_msgs::SetMode::Request &req,
+                                                hospitality_msgs::SetMode::Response &resp)
+{
+    op_mode_ = req.mode;
+    resp.ack = true;
+    return true;
+}
+
+template <typename T_controller>
+bool TB3DriveNode<T_controller>::SetPathHandler(hospitality_msgs::SetPath::Request &req,
+                                                hospitality_msgs::SetPath::Response &resp)
+{
+    if (req.path.size() > 0)
+    {
+        controller_.SetPath(req.path);
+        resp.ack = true;
+        ROS_INFO("Received path of length %d.", static_cast<int>(req.path.size()));
+    }
+    else
+    {
+        controller_.ResetPath();
+        resp.ack = false;
+        ROS_ERROR("Received zero-length path.");
+    }
+    return true;
 }
 
 template <typename T_controller>

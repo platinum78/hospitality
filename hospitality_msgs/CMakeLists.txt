@@ -31,6 +31,8 @@ add_service_files(
   FindRoute.srv
   UpdatePosition.srv
   UpdateURI.srv
+  SetMode.srv
+  SetPath.srv
 )
 
 ## Generate actions in the 'action' folder

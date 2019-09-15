@@ -10,13 +10,44 @@
 #include "xmlrpcpp/XmlRpcValue.h"
 
 #include "hospitality_msgs/Waypoint.h"
+#include "hospitality_msgs/PointFloor.h"
 
 #include "pid.hpp"
+
+#define PI 3.14159265358979
 
 namespace path_planning { namespace Frame { enum { INERTIAL, ROBOT }; }; };
 
 
-class RepulsiveController
+
+////////////////////////////////////////////////////////////////////////////////
+//                              Class Declaration                             //
+////////////////////////////////////////////////////////////////////////////////
+
+class Controller
+{
+public:
+    Controller() {}
+
+public:
+    virtual void GetParams() {}
+    virtual void SetPath(std::vector<hospitality_msgs::PointFloor> &path)
+    {
+        path_.resize(0);
+        path_.assign(path.begin(), path.end());
+    }
+    virtual void ResetPath() { path_.resize(0); }
+    virtual void SetTargetPoint() {}
+    virtual geometry_msgs::Vector3 ComputeVelocity() {}
+    virtual void ExecLoop() {}
+
+protected:
+    hospitality_msgs::PointFloor target_point_;
+    std::list<hospitality_msgs::PointFloor> path_;
+};
+
+
+class RepulsiveController : public Controller
 {
 public:
     RepulsiveController();
@@ -49,12 +80,17 @@ private:
 };
 
 
+
+////////////////////////////////////////////////////////////////////////////////
+//                               Class Definition                             //
+////////////////////////////////////////////////////////////////////////////////
+
 RepulsiveController::RepulsiveController()
 {
     double angle;
     for (int i = 0; i < 360; i++)
     {
-        angle = double(i);
+        angle = double(i) * PI / 180;
         sin_[i] = sin(angle);
         cos_[i] = cos(angle);
     }
