@@ -1,4 +1,5 @@
 <launch>
     <rosparam command="load" file="$(find hospitality_server)/settings/settings.yaml" />
     <node pkg="hospitality_server" name="robot_info_node" type="robot_info_node" output="screen" />
+    <node pkg="hospitality_server" name="map_server_node" type="map_server_node" output="screen" />
 </launch>

@@ -42,6 +42,9 @@ public:
 public:
     void ExecLoop(double hz);
 
+public:
+    enum { OP_MODE_STOP, OP_MODE_MOVE };
+
 private:
     ros::NodeHandle n;
     ros::Publisher cmd_vel_publisher_;
@@ -87,6 +90,7 @@ TB3DriveNode<T_controller>::TB3DriveNode()
     set_mode_service_ = n.advertiseService("/set_mode_service", &TB3DriveNode<T_controller>::SetModeHandler, this);
     set_path_service_ = n.advertiseService("/set_path_service", &TB3DriveNode<T_controller>::SetPathHandler, this);
     controller_.GetParams(n);
+    op_mode_ = OP_MODE_STOP;
 }
 
 template <typename T_controller>
@@ -119,6 +123,7 @@ template <typename T_controller>
 bool TB3DriveNode<T_controller>::SetModeHandler(hospitality_msgs::SetMode::Request &req,
                                                 hospitality_msgs::SetMode::Response &resp)
 {
+    ROS_INFO("TB3DriveNode::SetMode : Received request - %d", req.mode);
     op_mode_ = req.mode;
     resp.ack = true;
     return true;
@@ -130,6 +135,7 @@ bool TB3DriveNode<T_controller>::SetPathHandler(hospitality_msgs::SetPath::Reque
 {
     if (req.path.size() > 0)
     {
+        controller_.ResetPath();
         controller_.SetPath(req.path);
         resp.ack = true;
         ROS_INFO("Received path of length %d.", static_cast<int>(req.path.size()));
@@ -155,10 +161,23 @@ void TB3DriveNode<T_controller>::PublishCmdVel(double linear, double angular)
 template <typename T_controller>
 void TB3DriveNode<T_controller>::ExecLoop(double hz)
 {
+    ROS_INFO("Starting TB3DriveNode loop.");
     ros::Rate loopRate(hz);
     while (ros::ok())
     {
-
+        if (op_mode_ == OP_MODE_MOVE && !controller_.IsTrackingComplete())
+        {
+            geometry_msgs::Vector3 velocity;
+            velocity = controller_.ComputeVelocity(position_, orientation_, scan_ranges_);
+            printf("%lf, %lf, %lf \n", velocity.x, velocity.y, velocity.z);
+            PublishCmdVel(velocity.x, velocity.z);
+        }
+        else
+        {
+            PublishCmdVel(0, 0);
+        }
+        ros::spinOnce();
+        loopRate.sleep();
     }
 }
 

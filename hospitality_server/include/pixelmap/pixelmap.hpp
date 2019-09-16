@@ -7,17 +7,24 @@
 #include <list>
 #include <map>
 #include <queue>
-
 #include <cmath>
+
 #include <sys/types.h>
 #include <dirent.h>
 #include "../EasyBMP/EasyBMP.cpp"
 #include "../errors.hpp"
-#include "../geometry_datatypes.hpp"
+
+#include "hospitality_msgs/PointFloor.h"
 
 #define MAP_CSV_COLUMNS     4
 
 typedef unsigned char byte;
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//                              Class Declaration                             //
+////////////////////////////////////////////////////////////////////////////////
 
 class PixelMap
 {
@@ -53,11 +60,11 @@ private:
     bool IsIdxInMap(PixelIdx &idx);
     bool IsIdxInMap(int row, int col);
 
-private:
+public:
     PixelIdx GetBoundingPixel(double x, double y);
     PixelIdx GetBoundingPixel(double x, double y, int floor);
-    PointFloor<double> GetPixelCenterpoint(int row, int col);
-    PointFloor<double> GetPixelCenterpoint(int row, int col, int floor);
+    hospitality_msgs::PointFloor GetPixelCenterpoint(int row, int col);
+    hospitality_msgs::PointFloor GetPixelCenterpoint(int row, int col, int floor);
 
 private:
     const int delta_[8][2] = { {0, 1},      {-1, 1},    {-1, 0},    {-1, -1},
@@ -94,7 +101,13 @@ private:
     double resolution_;
 };
 
-PixelMap::PixelMap() {}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//                               Class Definition                             //
+////////////////////////////////////////////////////////////////////////////////
+
+PixelMap::PixelMap() { origin_row_ = 1175; origin_col_ = 1470; resolution_ = 0.05; }
 
 PixelMap::PixelMap(const char *bmp_path, const char *csv_path, int origin_row, int origin_col, double resolution)
     : origin_row_(origin_row), origin_col_(origin_col), resolution_(resolution)
@@ -243,7 +256,7 @@ int PixelMap::ReadMapBmp(const char *path)
     for (iter = file_list_.begin(); iter != file_list_.end(); iter++)
     {
         BMP image;
-        image.ReadFromFile((dirPath + *iter).c_str());
+        image.ReadFromFile((dirPath + std::string("/") + *iter).c_str());
 
         if (!pixel_width_ && !pixel_height_)
         {
@@ -368,12 +381,30 @@ PixelMap::PixelIdx PixelMap::GetBoundingPixel(double x, double y, int floor)
     return idx;
 }
 
+hospitality_msgs::PointFloor PixelMap::GetPixelCenterpoint(int row, int col)
+{
+    GetPixelCenterpoint(row, col, 0);
+}
+
+hospitality_msgs::PointFloor PixelMap::GetPixelCenterpoint(int row, int col, int floor)
+{
+    int dpr = row - origin_row_;
+    int dpc = col - origin_col_;
+
+    hospitality_msgs::PointFloor point;
+    point.x = double(-dpr) * resolution_;
+    point.y = double(dpc) * resolution_;
+    point.floor = floor;
+
+    return point;
+}
+
 double PixelMap::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &start, PixelIdx &dest)
 {
     // Initialize path-finding values.
     int startMapIdx = floor_idx_table_[start.floor];
     int destMapIdx = floor_idx_table_[dest.floor];
-    PixelIdx pxIdx = (PixelIdx){ -1, -1, 0 };
+    PixelIdx pxIdx;
     for (int i = 0; i < pixel_height_; i++)
     {
         for (int j = 0; j < pixel_width_; j++)
@@ -389,6 +420,7 @@ double PixelMap::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &sta
     
     pxIdx = start;
     pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.cost_ = 0.0;
+    pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.prev_pixel_ = (PixelIdx){ -1, -1, 0 };
     PixelPathCost pxPathCost = (PixelPathCost){ 0.0, pxIdx };
     openPixels.push(pxPathCost);
     const double SQRT2 = sqrt(2.0);

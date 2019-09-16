@@ -1,0 +1,6 @@
+int32 query_type
+string place_code
+string place_name
+PointFloor coordinate
+---
+Place place_info

@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(hospitality_server)
+add_compile_options(-std=c++11)
 
 find_package(
   catkin REQUIRED 
   roscpp
   rospy
+  roslib
   std_msgs
   geometry_msgs
   sensor_msgs
@@ -56,3 +58,6 @@ include_directories(
 
 add_executable(robot_info_node src/robot_info_node.cpp)
 target_link_libraries(robot_info_node ${catkin_LIBRARIES})
+
+add_executable(map_server_node src/map_server_node.cpp)
+target_link_libraries(map_server_node ${catkin_LIBRARIES})

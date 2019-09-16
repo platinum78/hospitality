@@ -23,6 +23,7 @@ add_message_files(
   FILES
   Waypoint.msg
   PointFloor.msg
+  Place.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -33,6 +34,7 @@ add_service_files(
   UpdateURI.srv
   SetMode.srv
   SetPath.srv
+  QueryPlace.srv
 )
 
 ## Generate actions in the 'action' folder

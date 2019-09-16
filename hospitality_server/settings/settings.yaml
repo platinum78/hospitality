@@ -1,36 +1,37 @@
 main_server:
     network:
-        tcp_ip:             192.168.0.1
-        tcp_port:           8000
+        tcp_ip:                       192.168.0.1
+        tcp_port:                     8000
     
     map_server:
-        map_path:           "/usr"
+        map_bmp_relative_path:        "/data/map/bitmap"
+        map_csv_relative_path:        "/data/map/csv/place_list.csv"
     
     filesystem:
-        base_dir:           ""
+        base_dir:                     ""
 
 robot_system:
     robot_info:
-      - robot_id:           0
-        robot_type:         postman
-        robot_name:         postman_1
-        robot_tcp_ip:       "0.0.0.0"
-        robot_tcp_port:     8000
+      - robot_id:                     0
+        robot_type:                   postman
+        robot_name:                   postman_1
+        robot_tcp_ip:                 "0.0.0.0"
+        robot_tcp_port:               8000
 
-      - robot_id:           1
-        robot_type:         postman
-        robot_name:         postman_2
-        robot_tcp_ip:       "0.0.0.0"
-        robot_tcp_port:     8000
+      - robot_id:                     1
+        robot_type:                   postman
+        robot_name:                   postman_2
+        robot_tcp_ip:                 "0.0.0.0"
+        robot_tcp_port:               8000
 
-      - robot_id:           2
-        robot_type:         postman
-        robot_name:         postman_3
-        robot_tcp_ip:       "0.0.0.0"
-        robot_tcp_port:     8000
+      - robot_id:                     2
+        robot_type:                   postman
+        robot_name:                   postman_3
+        robot_tcp_ip:                 "0.0.0.0"
+        robot_tcp_port:               8000
 
-      - robot_id:           3
-        robot_type:         postman
-        robot_name:         postman_1
-        robot_tcp_ip:       "0.0.0.0"
-        robot_tcp_port:     8000
+      - robot_id:                     3
+        robot_type:                   postman
+        robot_name:                   postman_1
+        robot_tcp_ip:                 "0.0.0.0"
+        robot_tcp_port:               8000

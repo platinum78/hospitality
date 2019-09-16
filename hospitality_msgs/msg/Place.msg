@@ -1,0 +1,4 @@
+int32 place_id
+string place_code
+string place_name
+PointFloor coordinate

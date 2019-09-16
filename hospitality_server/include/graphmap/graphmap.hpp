@@ -10,6 +10,7 @@
 
 #include "../geometry_datatypes.hpp"
 #include "../errors.hpp"
+#include "../pixelmap/pixelmap.hpp"
 
 #define ERROR                       -1
 #define SUCCESS                     0
@@ -100,6 +101,7 @@ struct GraphMap::Node
 struct GraphMap::Connection
 {
     Node *node_ptr_;
+    std::vector<PixelMap::PixelIdx> path_;
     double traversal_dist_;
     double traversal_time_;
 };

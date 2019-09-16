@@ -1,4 +1,4 @@
 <launch>
-    <rosparam command="load" file="$(find hospitality_server)/settings/settings.yaml" />
-    <node pkg="hospitality_server" name="robot_info_node" type="robot_info_node" output="screen" />
+    <rosparam command="load" file="$(find hospitality_robot)/settings/settings.yaml" />
+    <node pkg="hospitality_robot" name="tb3_drive_node" type="tb3_drive_node" output="screen" />
 </launch>
