@@ -121,7 +121,7 @@ void RepulsiveController::GetParams(ros::NodeHandle &n)
 
         pid_angular_.SetGain(kp_ang_, ki_ang_, kd_ang_);
         pid_angular_.SetHz(hz_);
-        pid_angular_.SetLimit(-0.28, 0.28);
+        pid_angular_.SetLimit(-2.7, 2.7);
     }
     catch (XmlRpc::XmlRpcException &e)
     {
@@ -137,6 +137,7 @@ geometry_msgs::Vector3 RepulsiveController::ComputeVelocity(geometry_msgs::Vecto
 {
     double scanDist, targetDist;
     double fReplScalar, fX, fY, fNetX = 0, fNetY = 0;
+    printf("Target: (%lf, %lf) \n", path_.front().x, path_.front().y);
 
     // Compute net repulsion.
     for (int i = 0; i < 360; i++)
@@ -149,8 +150,8 @@ geometry_msgs::Vector3 RepulsiveController::ComputeVelocity(geometry_msgs::Vecto
         fNetY -= fY;
     }
     fReplScalar = sqrt(fNetX * fNetX + fNetY * fNetY);
-    fNetX /= fReplScalar;
-    fNetY /= fReplScalar;
+    fNetX = fNetX / fReplScalar / 2;
+    fNetY = fNetY / fReplScalar / 2;
     
     fNetX = fNetY = 0;
     
@@ -158,6 +159,7 @@ geometry_msgs::Vector3 RepulsiveController::ComputeVelocity(geometry_msgs::Vecto
     double fGravAngle, tRG;
     hospitality_msgs::PointFloor targetPos = path_.front();
     tRG = atan2(targetPos.y - position.y, targetPos.x - position.x) - orientation.z;
+    printf("%lf \n", tRG);
     fNetX += grav_const_ * cos(tRG);
     fNetY += grav_const_ * sin(tRG);
 
@@ -168,17 +170,17 @@ geometry_msgs::Vector3 RepulsiveController::ComputeVelocity(geometry_msgs::Vecto
     pid_angular_.SetOutput(0);
     pid_angular_.SetTarget(fAngle);
     robotVel.z = pid_angular_.ComputePID();
-    robotVel.x = 0.3;
+    robotVel.x = 0.225;
 
     targetDist = pow(targetPos.x - position.x, 2) + pow(targetPos.y - position.y, 2);
     if (path_.size() >= 2)
     {
-        if (targetDist < 0.001)
+        if (targetDist < 0.005)
             path_.pop_front();
     }
     else if (path_.size() == 1)
     {
-        if (targetDist < 0.001)
+        if (targetDist < 0.005)
         {
             path_.pop_front();
             tracking_complete_ = true;

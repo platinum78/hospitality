@@ -91,6 +91,7 @@ bool MapServerNode::FindRouteHandler(hospitality_msgs::FindRoute::Request &req,
 
     std::list<PixelMap::PixelIdx> pathContainer;
     pixel_map_.DijkstraPath(pathContainer, startIdx, destIdx);
+    pixel_map_.ReducePath(pathContainer);
 
     resp.waypoints.resize(pathContainer.size());
     int vecIdx = 0;

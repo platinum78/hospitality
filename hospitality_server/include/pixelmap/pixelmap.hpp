@@ -43,7 +43,7 @@ public:
 
 public:
     enum { PATH_STATE_NEW, PATH_STATE_OPEN, PATH_STATE_VISITED };
-    enum { PIXEL_STATE_FREE, PIXEL_STATE_BLOCKED, PIXEL_STATE_AMBIGUOUS };
+    enum { PIXEL_STATE_FREE, PIXEL_STATE_PAD, PIXEL_STATE_BLOCKED, PIXEL_STATE_AMBIGUOUS };
     enum { PATH_REDUCTION_STRAIGHT_LINE, PATH_REDUCTION_LOS };
 
 public:
@@ -52,6 +52,7 @@ public:
     int ReadMapBmp(const char *bmp_path);
     int ReadMapBmp(const char *bmp_path, double roi_height, double resolution);
     int ReadMapCsv(const char *csv_path);
+    void MakePadding(double pad_radius, double map_idx);
 
 public:
     byte operator() (int r, int c, int floor);
@@ -92,13 +93,17 @@ private:
     std::map<int, int> floor_idx_table_;
     std::vector<std::vector<std::vector<Pixel> > > pixel_map_;
     std::list<std::string> file_list_;
+    std::vector<std::vector<bool> > pad_filter_;
 
 private:
     int pixel_width_;
     int pixel_height_;
+    double roi_width_;
+    double roi_height_;
     int origin_row_;
     int origin_col_;
     double resolution_;
+    double pad_radius_;
 };
 
 
@@ -107,7 +112,14 @@ private:
 //                               Class Definition                             //
 ////////////////////////////////////////////////////////////////////////////////
 
-PixelMap::PixelMap() { origin_row_ = 1175; origin_col_ = 1470; resolution_ = 0.05; }
+PixelMap::PixelMap()
+{
+    origin_row_ = 1175;
+    origin_col_ = 1470;
+    roi_width_ = 52.755;
+    roi_height_ = 34.82;
+    pad_radius_ = 0.1;
+}
 
 PixelMap::PixelMap(const char *bmp_path, const char *csv_path, int origin_row, int origin_col, double resolution)
     : origin_row_(origin_row), origin_col_(origin_col), resolution_(resolution)
@@ -262,6 +274,7 @@ int PixelMap::ReadMapBmp(const char *path)
         {
             pixel_width_ = image.TellWidth();
             pixel_height_ = image.TellHeight();
+            resolution_ = (roi_width_ / pixel_width_ + roi_height_ / pixel_height_) / 2;
         }
         else if (pixel_width_ && pixel_height_)
         {
@@ -291,6 +304,9 @@ int PixelMap::ReadMapBmp(const char *path)
                     pixel_map_[mapIdx][r][c].state = PIXEL_STATE_FREE;
             }
         }
+        
+        MakePadding(0.12, mapIdx);
+        mapIdx++;
     }
 }
 
@@ -336,6 +352,27 @@ int PixelMap::ReadMapCsv(const char *file_path)
     
     if (!lineComplete)
         printf("WARN: Finished import, but trailing line is incomplete.");
+}
+
+void PixelMap::MakePadding(double pad_radius, double map_idx)
+{
+    int padRadPx = int(pad_radius / resolution_);
+    int padDiaPx = 2 * padRadPx - 1;
+    
+    for (int r = 0; r < pixel_height_; r++)
+    {
+        for (int c = 0; c < pixel_width_; c++)
+        {
+            Pixel &px = pixel_map_[map_idx][r][c];
+            if (px.state == PIXEL_STATE_BLOCKED)
+                for (int v = -padRadPx; v <= padRadPx; v++)
+                    for (int h = -padRadPx; h <= padRadPx; h++)
+                        if ((v != 0 || h != 0) && IsIdxInMap(r + v, c + h) &&
+                            pow(v * resolution_, 2) + pow(h * resolution_, 2) < pow(pad_radius, 2))
+                            if (pixel_map_[map_idx][r + v][c + h].state == PIXEL_STATE_FREE)
+                                pixel_map_[map_idx][r + v][c + h].state = PIXEL_STATE_PAD;
+        }
+    }
 }
 
 byte PixelMap::operator() (int r, int c, int floor)
@@ -392,8 +429,8 @@ hospitality_msgs::PointFloor PixelMap::GetPixelCenterpoint(int row, int col, int
     int dpc = col - origin_col_;
 
     hospitality_msgs::PointFloor point;
-    point.x = double(-dpr) * resolution_;
-    point.y = double(dpc) * resolution_;
+    point.x = double(dpc) * resolution_;
+    point.y = double(-dpr) * resolution_;
     point.floor = floor;
 
     return point;
@@ -445,6 +482,10 @@ double PixelMap::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &sta
                 path_container.push_front(pxIdx);
                 pxIdx = pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.prev_pixel_;
             } while (pxIdx.row != -1);
+            FILE *fp = fopen("/home/susung/Desktop/path.txt", "w");
+            for (std::list<PixelIdx>::iterator iter = path_container.begin(); iter != path_container.end(); iter++)
+                fprintf(fp, "%d %d \n", iter->row, iter->col);
+            fclose(fp);
             printf("Finished! \n");
             return totalPathCost;
         }

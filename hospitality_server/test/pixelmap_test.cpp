@@ -15,7 +15,7 @@ int main(void)
     dest.row = 550; dest.col = 4020; dest.floor = 1;
     std::list<PixelMap::PixelIdx> pathContainer;
     map.DijkstraPath(pathContainer, start, dest);
-    map.ReducePath(pathContainer, PixelMap::PATH_REDUCTION_STRAIGHT_LINE);
+    // map.ReducePath(pathContainer, PixelMap::PATH_REDUCTION_STRAIGHT_LINE);
 
     std::list<PixelMap::PixelIdx>::iterator iter;
     printf("%d \n", pathContainer.size());

@@ -8,6 +8,6 @@ path_controllers:
         ki_linear:                  0.0
         kd_linear:                  0.0
         
-        kp_angular:                 20.0
-        ki_angular:                 0.0
-        kd_angular:                 0.0
+        kp_angular:                 10.0
+        ki_angular:                 1.0
+        kd_angular:                 2.0

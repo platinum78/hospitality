@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "tb3_drive_node");
     TB3DriveNode<RepulsiveController> tb3DriveNode;
-    tb3DriveNode.ExecLoop(20);
+    tb3DriveNode.ExecLoop(60);
 }
 
 #endif
