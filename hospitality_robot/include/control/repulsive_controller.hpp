@@ -175,7 +175,7 @@ geometry_msgs::Vector3 RepulsiveController::ComputeVelocity(geometry_msgs::Vecto
     targetDist = pow(targetPos.x - position.x, 2) + pow(targetPos.y - position.y, 2);
     if (path_.size() >= 2)
     {
-        if (targetDist < 0.005)
+        if (targetDist < 0.05)
             path_.pop_front();
     }
     else if (path_.size() == 1)

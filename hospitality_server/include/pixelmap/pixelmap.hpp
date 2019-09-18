@@ -14,6 +14,8 @@
 #include "../EasyBMP/EasyBMP.cpp"
 #include "../errors.hpp"
 
+#include "ros/ros.h"
+#include "xmlrpcpp/XmlRpcValue.h"
 #include "hospitality_msgs/PointFloor.h"
 
 #define MAP_CSV_COLUMNS     4
@@ -32,6 +34,7 @@ public:
     PixelMap();
     PixelMap(const char *bmp_path, const char *csv_path, int origin_x, int origin_y, double resolution);
     ~PixelMap();
+    void GetParams(ros::NodeHandle &n);
 
 public:
     struct Pixel;
@@ -67,8 +70,10 @@ public:
     hospitality_msgs::PointFloor GetPixelCenterpoint(int row, int col);
     hospitality_msgs::PointFloor GetPixelCenterpoint(int row, int col, int floor);
 
+public:
+
 private:
-    const int delta_[8][2] = { {0, 1},      {-1, 1},    {-1, 0},    {-1, -1},
+    const int delta_[8][2] = { {0, 1},      {-1, 1},   {-1, 0},   {-1, -1},
                                {0, -1},     {1, -1},   {1, 0},    {1, 1} };
 
 public:
@@ -126,6 +131,13 @@ PixelMap::PixelMap(const char *bmp_path, const char *csv_path, int origin_row, i
 {
     ReadMapBmp(bmp_path);
     ReadMapCsv(csv_path);
+}
+
+void PixelMap::GetParams(ros::NodeHandle &n)
+{
+    XmlRpc::XmlRpcValue paramDict;
+    n.getParam("/main_server/map_server", paramDict);
+    pad_radius_ = static_cast<double>(paramDict["blocked_area_padding_radius"]);
 }
 
 
@@ -305,7 +317,7 @@ int PixelMap::ReadMapBmp(const char *path)
             }
         }
         
-        MakePadding(0.12, mapIdx);
+        MakePadding(pad_radius_, mapIdx);
         mapIdx++;
     }
 }

@@ -6,6 +6,7 @@ main_server:
     map_server:
         map_bmp_relative_path:        "/data/map/bitmap"
         map_csv_relative_path:        "/data/map/csv/place_list.csv"
+        blocked_area_padding_radius:  0.15
     
     filesystem:
         base_dir:                     ""
