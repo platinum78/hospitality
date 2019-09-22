@@ -4,9 +4,16 @@ main_server:
         tcp_port:                     8000
     
     map_server:
-        map_bmp_relative_path:        "/data/map/bitmap"
-        map_csv_relative_path:        "/data/map/csv/place_list.csv"
-        blocked_area_padding_radius:  0.15
+        pixelmap:
+            map_bmp_relative_path:        "/data/map/bitmap"
+            map_csv_relative_path:        "/data/map/csv/place_list.csv"
+            map_origin_row:               1175
+            map_origin_col:               1470
+            map_roi_width:                52.755
+            map_roi_height:               34.82
+            map_pad_radius:               0.15
+        graphmap:
+            
     
     filesystem:
         base_dir:                     ""

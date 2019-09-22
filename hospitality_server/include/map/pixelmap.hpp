@@ -14,10 +14,6 @@
 #include "../EasyBMP/EasyBMP.cpp"
 #include "../errors.hpp"
 
-#include "ros/ros.h"
-#include "xmlrpcpp/XmlRpcValue.h"
-#include "hospitality_msgs/PointFloor.h"
-
 #define MAP_CSV_COLUMNS     4
 
 typedef unsigned char byte;
@@ -28,18 +24,19 @@ typedef unsigned char byte;
 //                              Class Declaration                             //
 ////////////////////////////////////////////////////////////////////////////////
 
+template <typename T_point>
 class PixelMap
 {
 public:
     PixelMap();
     PixelMap(const char *bmp_path, const char *csv_path, int origin_x, int origin_y, double resolution);
     ~PixelMap();
-    void GetParams(ros::NodeHandle &n);
+    void SetParams(int origin_row, int origin_col, double roi_width, double roi_height, double pad_radius);
 
 public:
     struct Pixel;
     struct PixelIdx;
-    struct PixelInfo;
+    struct PlaceInfo;
     struct PixelPathCost;
     struct PixelPathHCost;
     struct PixelPathStat;
@@ -67,10 +64,11 @@ private:
 public:
     PixelIdx GetBoundingPixel(double x, double y);
     PixelIdx GetBoundingPixel(double x, double y, int floor);
-    hospitality_msgs::PointFloor GetPixelCenterpoint(int row, int col);
-    hospitality_msgs::PointFloor GetPixelCenterpoint(int row, int col, int floor);
+    T_point GetPixelCenterpoint(int row, int col);
+    T_point GetPixelCenterpoint(int row, int col, int floor);
 
 public:
+    std::list<PlaceInfo *> &GetPlaceList() { return place_list_; }
 
 private:
     const int delta_[8][2] = { {0, 1},      {-1, 1},   {-1, 0},   {-1, -1},
@@ -97,6 +95,7 @@ private:
 private:
     std::map<int, int> floor_idx_table_;
     std::vector<std::vector<std::vector<Pixel> > > pixel_map_;
+    std::list<PlaceInfo *> place_list_;
     std::list<std::string> file_list_;
     std::vector<std::vector<bool> > pad_filter_;
 
@@ -117,31 +116,29 @@ private:
 //                               Class Definition                             //
 ////////////////////////////////////////////////////////////////////////////////
 
-PixelMap::PixelMap()
-{
-    origin_row_ = 1175;
-    origin_col_ = 1470;
-    roi_width_ = 52.755;
-    roi_height_ = 34.82;
-    pad_radius_ = 0.1;
-}
+template <typename T_point>
+PixelMap<T_point>::PixelMap() {}
 
-PixelMap::PixelMap(const char *bmp_path, const char *csv_path, int origin_row, int origin_col, double resolution)
+template <typename T_point>
+PixelMap<T_point>::PixelMap(const char *bmp_path, const char *csv_path, int origin_row, int origin_col, double resolution)
     : origin_row_(origin_row), origin_col_(origin_col), resolution_(resolution)
 {
     ReadMapBmp(bmp_path);
     ReadMapCsv(csv_path);
 }
 
-void PixelMap::GetParams(ros::NodeHandle &n)
+template <typename T_point>
+void PixelMap<T_point>::SetParams(int origin_row, int origin_col, double roi_width, double roi_height, double pad_radius)
 {
-    XmlRpc::XmlRpcValue paramDict;
-    n.getParam("/main_server/map_server", paramDict);
-    pad_radius_ = static_cast<double>(paramDict["blocked_area_padding_radius"]);
+    origin_row_ = origin_row;
+    origin_col_ = origin_col;
+    roi_width_ = roi_width;
+    roi_height_ = roi_height;
+    pad_radius_ = pad_radius;
 }
 
-
-struct PixelMap::PixelIdx
+template <typename T_point>
+struct PixelMap<T_point>::PixelIdx
 {
     int row;
     int col;
@@ -162,13 +159,16 @@ struct PixelMap::PixelIdx
     }
 };
 
-struct PixelMap::PixelInfo
+template <typename T_point>
+struct PixelMap<T_point>::PlaceInfo
 {
-    int place_code;
-    std::string description;
+    int place_id;
+    std::string place_code;
+    T_point coordinate_;
 };
 
-struct PixelMap::PixelPathCost
+template <typename T_point>
+struct PixelMap<T_point>::PixelPathCost
 {
     double cost_;
     PixelIdx idx_;
@@ -193,7 +193,8 @@ struct PixelMap::PixelPathCost
     }
 };
 
-struct PixelMap::PixelPathHCost
+template <typename T_point>
+struct PixelMap<T_point>::PixelPathHCost
 {
     double cost_;
     double heuristic_;
@@ -220,7 +221,8 @@ struct PixelMap::PixelPathHCost
     }
 };
 
-struct PixelMap::PixelPathStat
+template <typename T_point>
+struct PixelMap<T_point>::PixelPathStat
 {
     int pixel_state_;
     double cost_;
@@ -228,15 +230,16 @@ struct PixelMap::PixelPathStat
     PixelIdx prev_pixel_;
 };
 
-struct PixelMap::Pixel
+template <typename T_point>
+struct PixelMap<T_point>::Pixel
 {
     byte state;
-    PixelInfo *pixel_info;
+    PlaceInfo *place_info;
     PixelPathStat path_stat;
     Pixel()
     {
         state = PIXEL_STATE_FREE;
-        pixel_info = nullptr;
+        place_info = nullptr;
         path_stat.pixel_state_ = PATH_STATE_NEW;
         path_stat.cost_ = __DBL_MAX__;
         path_stat.heuristic_ = 0.0;
@@ -244,7 +247,8 @@ struct PixelMap::Pixel
     }
 };
 
-void PixelMap::ListDir(const char *path)
+template <typename T_point>
+void PixelMap<T_point>::ListDir(const char *path)
 {
     DIR *dp;
     dirent *dirp;
@@ -265,7 +269,8 @@ void PixelMap::ListDir(const char *path)
     file_list_.sort();
 }
 
-int PixelMap::ReadMapBmp(const char *path)
+template <typename T_point>
+int PixelMap<T_point>::ReadMapBmp(const char *path)
 {
     ListDir(path);
     pixel_map_.resize(file_list_.size());
@@ -322,7 +327,8 @@ int PixelMap::ReadMapBmp(const char *path)
     }
 }
 
-int PixelMap::ReadMapCsv(const char *file_path)
+template <typename T_point>
+int PixelMap<T_point>::ReadMapCsv(const char *file_path)
 {
     FILE *fp = fopen(file_path, "r");
     
@@ -354,9 +360,9 @@ int PixelMap::ReadMapCsv(const char *file_path)
         {
             PixelIdx pxIdx = GetBoundingPixel(x, y, floor);
             mapIdx = floor_idx_table_[floor];
-            PixelInfo *pxInfo = new PixelInfo;
-            pxInfo->place_code = placeCode;
-            pixel_map_[mapIdx][pxIdx.row][pxIdx.col].pixel_info = pxInfo;
+            PlaceInfo *pxInfo = new PlaceInfo;
+            pxInfo->place_id = placeCode;
+            pixel_map_[mapIdx][pxIdx.row][pxIdx.col].place_info = pxInfo;
         }
         else
             break;
@@ -366,7 +372,8 @@ int PixelMap::ReadMapCsv(const char *file_path)
         printf("WARN: Finished import, but trailing line is incomplete.");
 }
 
-void PixelMap::MakePadding(double pad_radius, double map_idx)
+template <typename T_point>
+void PixelMap<T_point>::MakePadding(double pad_radius, double map_idx)
 {
     int padRadPx = int(pad_radius / resolution_);
     int padDiaPx = 2 * padRadPx - 1;
@@ -387,18 +394,21 @@ void PixelMap::MakePadding(double pad_radius, double map_idx)
     }
 }
 
-byte PixelMap::operator() (int r, int c, int floor)
+template <typename T_point>
+byte PixelMap<T_point>::operator() (int r, int c, int floor)
 {
     int mapIdx = floor_idx_table_[floor];
     return pixel_map_[mapIdx][r][c].state;
 }
 
-bool PixelMap::IsIdxInMap(PixelIdx &idx)
+template <typename T_point>
+bool PixelMap<T_point>::IsIdxInMap(PixelIdx &idx)
 {
     return IsIdxInMap(idx.row, idx.col);
 }
 
-bool PixelMap::IsIdxInMap(int row, int col)
+template <typename T_point>
+bool PixelMap<T_point>::IsIdxInMap(int row, int col)
 {
     if (row < 0 || row >= pixel_height_)
         return false;
@@ -407,7 +417,8 @@ bool PixelMap::IsIdxInMap(int row, int col)
     return true;
 }
 
-PixelMap::PixelIdx PixelMap::GetBoundingPixel(double x, double y)
+template <typename T_point>
+PixelMap<T_point>::PixelIdx PixelMap<T_point>::GetBoundingPixel(double x, double y)
 {
     int dpx = int(round(x / resolution_));
     int dpy = int(round(y / resolution_));
@@ -418,7 +429,8 @@ PixelMap::PixelIdx PixelMap::GetBoundingPixel(double x, double y)
     return idx;
 }
 
-PixelMap::PixelIdx PixelMap::GetBoundingPixel(double x, double y, int floor)
+template <typename T_point>
+PixelMap<T_point>::PixelIdx PixelMap<T_point>::GetBoundingPixel(double x, double y, int floor)
 {
     int dpx = int(round(x / resolution_));
     int dpy = int(round(y / resolution_));
@@ -430,17 +442,19 @@ PixelMap::PixelIdx PixelMap::GetBoundingPixel(double x, double y, int floor)
     return idx;
 }
 
-hospitality_msgs::PointFloor PixelMap::GetPixelCenterpoint(int row, int col)
+template <typename T_point>
+T_point PixelMap<T_point>::GetPixelCenterpoint(int row, int col)
 {
     GetPixelCenterpoint(row, col, 0);
 }
 
-hospitality_msgs::PointFloor PixelMap::GetPixelCenterpoint(int row, int col, int floor)
+template <typename T_point>
+T_point PixelMap<T_point>::GetPixelCenterpoint(int row, int col, int floor)
 {
     int dpr = row - origin_row_;
     int dpc = col - origin_col_;
 
-    hospitality_msgs::PointFloor point;
+    T_point point;
     point.x = double(dpc) * resolution_;
     point.y = double(-dpr) * resolution_;
     point.floor = floor;
@@ -448,7 +462,8 @@ hospitality_msgs::PointFloor PixelMap::GetPixelCenterpoint(int row, int col, int
     return point;
 }
 
-double PixelMap::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &start, PixelIdx &dest)
+template <typename T_point>
+double PixelMap<T_point>::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &start, PixelIdx &dest)
 {
     // Initialize path-finding values.
     int startMapIdx = floor_idx_table_[start.floor];
@@ -532,7 +547,8 @@ double PixelMap::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &sta
     throw NoPathException("No path found.");
 }
 
-double PixelMap::AStarPath(std::list<PixelIdx> &path_container, PixelIdx &start, PixelIdx &dest)
+template <typename T_point>
+double PixelMap<T_point>::AStarPath(std::list<PixelIdx> &path_container, PixelIdx &start, PixelIdx &dest)
 {
     // Initialize path-finding values.
     int startMapIdx = floor_idx_table_[start.floor];
@@ -625,7 +641,8 @@ double PixelMap::AStarPath(std::list<PixelIdx> &path_container, PixelIdx &start,
     throw NoPathException("No path found.");
 }
 
-double PixelMap::DiagManhattan(PixelIdx &start, PixelIdx &dest)
+template <typename T_point>
+double PixelMap<T_point>::DiagManhattan(PixelIdx &start, PixelIdx &dest)
 {
     double dr = start.row - dest.row;
     double dc = start.col - dest.col;
@@ -638,13 +655,15 @@ double PixelMap::DiagManhattan(PixelIdx &start, PixelIdx &dest)
     return diagLen * sqrt(2) + remnLen;
 }
 
-void PixelMap::ReducePath(std::list<PixelIdx> &path_container, int mode = PATH_REDUCTION_STRAIGHT_LINE)
+template <typename T_point>
+void PixelMap<T_point>::ReducePath(std::list<PixelIdx> &path_container, int mode = PATH_REDUCTION_STRAIGHT_LINE)
 {
     if (mode == PATH_REDUCTION_STRAIGHT_LINE)
         PathReductionStraightLine(path_container);
 }
 
-void PixelMap::PathReductionStraightLine(std::list<PixelIdx> &path_container)
+template <typename T_point>
+void PixelMap<T_point>::PathReductionStraightLine(std::list<PixelIdx> &path_container)
 {
     std::list<PixelIdx>::iterator iterHead, iterTail;
     iterHead = iterTail = path_container.begin(); iterHead++;
@@ -676,7 +695,8 @@ void PixelMap::PathReductionStraightLine(std::list<PixelIdx> &path_container)
     }
 }
 
-PixelMap::~PixelMap()
+template <typename T_point>
+PixelMap<T_point>::~PixelMap()
 {
     // Destroy pixel map.
     for (int i = 0; i < pixel_map_.size(); i++)

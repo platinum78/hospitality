@@ -8,9 +8,11 @@
 #include <cmath>
 #include <unordered_map>
 
-#include "../geometry_datatypes.hpp"
+#include "ros/ros.h"
+#include "xmlrpcpp/XmlRpcValue.h"
 #include "../errors.hpp"
-#include "../pixelmap/pixelmap.hpp"
+#include "pixelmap.hpp"
+#include "hospitality_msgs/PointFloor.h"
 
 #define ERROR                       -1
 #define SUCCESS                     0
@@ -21,6 +23,7 @@
 #define PATH_NOT_FOUND              5
 
 
+template <typename T_point>
 class GraphMap
 {
 public:
@@ -28,37 +31,39 @@ public:
     enum { HFUNC_MANHATTAN, HFUNC_EUCLIDIAN, HFUNC_CUSTOM };
     enum { COST_DIST, COST_TIME };
 
-public:
+public: // 생성자 및 초기화 함수
     GraphMap();
     GraphMap(GraphMap &);
+    void SetParams(bool directed);
 
-public:
+public: // 데이터 저장을 위한 구조체 선언
     struct Node;
     struct Connection;
 
-public:
+public: // 경로 탐색을 위한 구조체 선언
     struct NodePathStat;
     struct NodePathCost;
 
-public:
-    void AddNode(int id, char *const code, PointFloor<double> coordinate);
-    void AddNode(int id, std::string &code, PointFloor<double> coordinate);
+public: // 장소 노드를 추가/수정/제거하는 메소드
+    void AddNode(int id, char *const code, T_point coordinate);
+    void AddNode(int id, std::string &code, T_point coordinate);
+    void ModifyNode(int id);
     void DelNode(int id);
     void DelNode(char *const code);
 
-public:
+public: // 두 개의 장소 노드를 연결하는 메소드
     void ConnectNodes(int n1_id, int n2_id, double trav_dist, double trav_time);
     void ConnectNodes(std::string &n1_code, std::string &n2_code, double trav_dist, double trav_time);
     void ConnectNodes(char *const n1_code, char *const n2_code, double trav_dist, double trav_time);
     void ConnectNodes(Node *n1_ptr, Node *n2_ptr, double trav_dist, double trav_time);
 
-public:
+public: // 두 개의 장소 노드의 연결을 끊는 메소드
     void DisconnectNodes(int n1_id, int n2_id);
     void DisconnectNodes(std::string &n1_code, std::string &n2_code);
     void DisconnectNodes(char *const n1_code, char *const n2_code);
     void DisconnectNodes(Node *n1_ptr, Node *n2_ptr);
 
-public:
+public: // 장소 노드의 포인터를 반환하는 메소드
     Node *GetNodePtr(int id);
     Node *GetNodePtr(char *const code);
     Node *GetNodePtr(std::string &code);
@@ -78,35 +83,46 @@ private:
     void DijkstraPath(std::list<Node *> &path_container, Node *n1_ptr, Node *n2_ptr, int cost_type);
 
 public:
-    double HFunc_Manhattan(PointFloor<double> &p1, PointFloor<double> &p2);
-    double HFunc_Euclidian(PointFloor<double> &p1, PointFloor<double> &p2);
+    double HFunc_Manhattan(T_point &p1, T_point &p2);
+    double HFunc_Euclidian(T_point &p1, T_point &p2);
 
 private:
     std::list<Node *> node_list_;
     bool directed_;
 };
 
-GraphMap::GraphMap()
+template <typename T_point>
+GraphMap<T_point>::GraphMap()
 {
 }
 
-struct GraphMap::Node
+template <typename T_point>
+void GraphMap<T_point>::SetParams(bool directed)
+{
+    directed_ = directed;
+}
+
+template <typename T_point>
+struct GraphMap<T_point>::Node
 {
     int id_;
     std::string code_;
     PointFloor<double> coordinate_;
     std::list<Connection *> connections_;
+    std::string description_;
 };
 
-struct GraphMap::Connection
+template <typename T_point>
+struct GraphMap<T_point>::Connection
 {
     Node *node_ptr_;
-    std::vector<PixelMap::PixelIdx> path_;
+    std::vector<PixelMap<hospitality_msgs::PointFloor>::PixelIdx> path_;
     double traversal_dist_;
     double traversal_time_;
 };
 
-struct GraphMap::NodePathCost
+template <typename T_point>
+struct GraphMap<T_point>::NodePathCost
 {
     double cost_;
     Node *node_ptr_;
@@ -122,14 +138,16 @@ struct GraphMap::NodePathCost
     }
 };
 
-struct GraphMap::NodePathStat
+template <typename T_point>
+struct GraphMap<T_point>::NodePathStat
 {
     int node_state_;
     Node *prev_node_;
     double cost_;
 };
 
-void GraphMap::AddNode(int id, char *code, PointFloor<double> coordinate)
+template <typename T_point>
+void GraphMap<T_point>::AddNode(int id, char *code, T_point coordinate)
 {
     Node *node_ptr = new Node;
     node_ptr->id_ = id;
@@ -139,7 +157,8 @@ void GraphMap::AddNode(int id, char *code, PointFloor<double> coordinate)
     node_list_.push_back(node_ptr);
 }
 
-void GraphMap::AddNode(int id, std::string &code, PointFloor<double> coordinate)
+template <typename T_point>
+void GraphMap<T_point>::AddNode(int id, std::string &code, T_point coordinate)
 {
     Node *node_ptr = new Node;
     node_ptr->id_ = id;
@@ -149,7 +168,8 @@ void GraphMap::AddNode(int id, std::string &code, PointFloor<double> coordinate)
     node_list_.push_back(node_ptr);
 }
 
-void GraphMap::DelNode(int id)
+template <typename T_point>
+void GraphMap<T_point>::DelNode(int id)
 {
     // Find the node with given id.
     Node *delnode_ptr = nullptr;
@@ -191,28 +211,32 @@ void GraphMap::DelNode(int id)
     }
 }
 
-void GraphMap::ConnectNodes(int n1_id, int n2_id, double trav_dist, double trav_time)
+template <typename T_point>
+void GraphMap<T_point>::ConnectNodes(int n1_id, int n2_id, double trav_dist, double trav_time)
 {
     Node *n1_ptr = GetNodePtr(n1_id);
     Node *n2_ptr = GetNodePtr(n2_id);
     ConnectNodes(n1_ptr, n2_ptr, trav_dist, trav_time);
 }
 
-void GraphMap::ConnectNodes(std::string &n1_code, std::string &n2_code, double trav_dist, double trav_time)
+template <typename T_point>
+void GraphMap<T_point>::ConnectNodes(std::string &n1_code, std::string &n2_code, double trav_dist, double trav_time)
 {
     Node *n1_ptr = GetNodePtr(n1_code);
     Node *n2_ptr = GetNodePtr(n2_code);
     ConnectNodes(n1_ptr, n2_ptr, trav_dist, trav_time);
 }
 
-void GraphMap::ConnectNodes(char *const n1_code, char *const n2_code, double trav_dist, double trav_time)
+template <typename T_point>
+void GraphMap<T_point>::ConnectNodes(char *const n1_code, char *const n2_code, double trav_dist, double trav_time)
 {
     Node *n1_ptr = GetNodePtr(n1_code);
     Node *n2_ptr = GetNodePtr(n2_code);
     ConnectNodes(n1_ptr, n2_ptr, trav_dist, trav_time);
 }
 
-void GraphMap::ConnectNodes(Node *n1_ptr, Node *n2_ptr, double trav_dist, double trav_time)
+template <typename T_point>
+void GraphMap<T_point>::ConnectNodes(Node *n1_ptr, Node *n2_ptr, double trav_dist, double trav_time)
 {
     for (std::list<Connection *>::iterator cnx_iter = n1_ptr->connections_.begin();
          cnx_iter != n1_ptr->connections_.end(); cnx_iter++)
@@ -226,7 +250,8 @@ void GraphMap::ConnectNodes(Node *n1_ptr, Node *n2_ptr, double trav_dist, double
     n1_ptr->connections_.push_back(cnx_ptr);
 }
 
-GraphMap::Node *GraphMap::GetNodePtr(int id)
+template <typename T_point>
+GraphMap<T_point>::Node *GraphMap<T_point>::GetNodePtr(int id)
 {
     // Find n1 and n2.
     Node *node_ptr;
@@ -242,7 +267,8 @@ GraphMap::Node *GraphMap::GetNodePtr(int id)
     throw NoSuchNodeException();
 }
 
-GraphMap::Node *GraphMap::GetNodePtr(char *const code)
+template <typename T_point>
+GraphMap<T_point>::Node *GraphMap<T_point>::GetNodePtr(char *const code)
 {
     Node *node_ptr;
     std::list<Node *>::iterator node_iter;
@@ -258,7 +284,8 @@ GraphMap::Node *GraphMap::GetNodePtr(char *const code)
     throw NoSuchNodeException();
 }
 
-GraphMap::Node *GraphMap::GetNodePtr(std::string &code)
+template <typename T_point>
+GraphMap<T_point>::Node *GraphMap<T_point>::GetNodePtr(std::string &code)
 {
     Node *node_ptr;
     std::list<Node *>::iterator node_iter;
@@ -273,7 +300,8 @@ GraphMap::Node *GraphMap::GetNodePtr(std::string &code)
     throw NoSuchNodeException();
 }
 
-void GraphMap::FindRoute(std::list<Node *> &path_container, int n1_id, int n2_id, int method)
+template <typename T_point>
+void GraphMap<T_point>::FindRoute(std::list<Node *> &path_container, int n1_id, int n2_id, int method)
 {
     // Find n1 and n2.
     Node *n1_ptr = GetNodePtr(n1_id);
@@ -297,7 +325,8 @@ void GraphMap::FindRoute(std::list<Node *> &path_container, int n1_id, int n2_id
     };
 }
 
-void GraphMap::FindRoute(std::list<Node *> &path_container, char *n1_code, char *n2_code, int method)
+template <typename T_point>
+void GraphMap<T_point>::FindRoute(std::list<Node *> &path_container, char *n1_code, char *n2_code, int method)
 {
     // Find n1 and n2.
     Node *n1_ptr = GetNodePtr(n1_code);
@@ -320,8 +349,8 @@ void GraphMap::FindRoute(std::list<Node *> &path_container, char *n1_code, char 
     };
 }
 
-
-void GraphMap::BFSPath(std::list<Node *> &path_container, Node *const n1_ptr, Node *const n2_ptr)
+template <typename T_point>
+void GraphMap<T_point>::BFSPath(std::list<Node *> &path_container, Node *const n1_ptr, Node *const n2_ptr)
 {
     enum { STATE_NEW, STATE_VISITED };
 
@@ -388,7 +417,8 @@ void GraphMap::BFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
     throw NoPathException();
 }
 
-void GraphMap::DFSPath(std::list<Node *> &path_container, Node *const n1_ptr, Node *const n2_ptr)
+template <typename T_point>
+void GraphMap<T_point>::DFSPath(std::list<Node *> &path_container, Node *const n1_ptr, Node *const n2_ptr)
 {
     enum { STATE_NEW, STATE_VISITED };
 
@@ -454,7 +484,8 @@ void GraphMap::DFSPath(std::list<Node *> &path_container, Node *const n1_ptr, No
     throw NoPathException();
 }
 
-void GraphMap::DijkstraPath(std::list<Node *> &path_container, Node *n1_ptr, Node *n2_ptr, int cost_type)
+template <typename T_point>
+void GraphMap<T_point>::DijkstraPath(std::list<Node *> &path_container, Node *n1_ptr, Node *n2_ptr, int cost_type)
 {
     enum { STATE_NEW, STATE_OPEN, STATE_VISITED };
 
@@ -533,7 +564,8 @@ void GraphMap::DijkstraPath(std::list<Node *> &path_container, Node *n1_ptr, Nod
     throw NoPathException();
 }
 
-void GraphMap::FindTraversalOrder(std::list<Node *> &path_container, std::list<Node *> &visit_list)
+template <typename T_point>
+void GraphMap<T_point>::FindTraversalOrder(std::list<Node *> &path_container, std::list<Node *> &visit_list)
 {
     
 }
