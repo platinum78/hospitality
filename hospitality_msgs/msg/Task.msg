@@ -1,0 +1,6 @@
+int32 task_id
+string client
+int32 task_type
+float64 request_timestamp
+float64 desired_finish_time
+float64 allowable_delay

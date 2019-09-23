@@ -15,9 +15,6 @@
 #include "../include/map/graphmap.hpp"
 #include "../include/map/pixelmap.hpp"
 
-typedef PixelMap<hospitality_msgs::PointFloor> PixelMapPF;
-typedef GraphMap<hospitality_msgs::PointFloor> GraphMapPF;
-
 class MapServerNode
 {
 public:
@@ -31,8 +28,8 @@ public:
     enum { QUERY_ID, QUERY_CODE, QUERY_NAME };
 
 private:
-    GraphMapPF graph_map_;
-    PixelMapPF pixel_map_;
+    GraphMap graph_map_;
+    PixelMap pixel_map_;
     
 
 private:
@@ -42,8 +39,8 @@ private:
                           hospitality_msgs::FindRoute::Response &resp);
 
 private:
-    // PixelMapPF::Node *QueryPlaceHelper(int place_id);
-    // PixelMapPF::Node *QueryPlaceHelper(std::string &str, int mode);
+    // PixelMap::Node *QueryPlaceHelper(int place_id);
+    // PixelMap::Node *QueryPlaceHelper(std::string &str, int mode);
 
 private:
     ros::NodeHandle n;
@@ -82,11 +79,11 @@ MapServerNode::MapServerNode()
     
 
     // Initiate GraphMap.
-    std::list<PixelMapPF::PlaceInfo *> &placeList = pixel_map_.GetPlaceList();
-    std::list<PixelMapPF::PlaceInfo *>::iterator iter;
+    std::list<PixelMap::PlaceInfo *> &placeList = pixel_map_.GetPlaceList();
+    std::list<PixelMap::PlaceInfo *>::iterator iter;
     for (iter = placeList.begin(); iter != placeList.end(); iter++)
     {
-        PixelMapPF::PlaceInfo *info_ptr = *iter;
+        PixelMap::PlaceInfo *info_ptr = *iter;
         graph_map_.AddNode(info_ptr->place_id, info_ptr->place_code, info_ptr->coordinate_);
     }
 
@@ -106,21 +103,21 @@ bool MapServerNode::FindRouteHandler(hospitality_msgs::FindRoute::Request &req,
     ROS_INFO("FindRouteHandler: Got service call!");
     hospitality_msgs::PointFloor &startPoint = req.start_point;
     hospitality_msgs::PointFloor &destPoint = req.dest_point;
-    PixelMapPF::PixelIdx startIdx = pixel_map_.GetBoundingPixel(startPoint.x, startPoint.y, startPoint.floor);
-    PixelMapPF::PixelIdx destIdx = pixel_map_.GetBoundingPixel(destPoint.x, destPoint.y, destPoint.floor);
+    PixelMap::PixelIdx startIdx = pixel_map_.GetBoundingPixel(startPoint.x, startPoint.y, startPoint.floor);
+    PixelMap::PixelIdx destIdx = pixel_map_.GetBoundingPixel(destPoint.x, destPoint.y, destPoint.floor);
 
     ROS_INFO("Starting pixel: (%d, %d)", startIdx.row, startIdx.col);
     ROS_INFO("Destination pixel: (%d, %d)", destIdx.row, destIdx.col);
 
-    std::list<PixelMapPF::PixelIdx> pathContainer;
+    std::list<PixelMap::PixelIdx> pathContainer;
     pixel_map_.DijkstraPath(pathContainer, startIdx, destIdx);
     pixel_map_.ReducePath(pathContainer);
 
     resp.waypoints.resize(pathContainer.size());
     int vecIdx = 0;
-    for (std::list<PixelMapPF::PixelIdx>::iterator iter = pathContainer.begin(); iter != pathContainer.end(); iter++)
+    for (std::list<PixelMap::PixelIdx>::iterator iter = pathContainer.begin(); iter != pathContainer.end(); iter++)
     {
-        PixelMapPF::PixelIdx &pxIdx = *iter;
+        PixelMap::PixelIdx &pxIdx = *iter;
         hospitality_msgs::PointFloor point = pixel_map_.GetPixelCenterpoint(pxIdx.row, pxIdx.col, pxIdx.floor);
         resp.waypoints[vecIdx] = point;
         vecIdx++;

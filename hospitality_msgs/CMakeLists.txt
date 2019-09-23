@@ -24,6 +24,7 @@ add_message_files(
   Waypoint.msg
   PointFloor.msg
   Place.msg
+  Task.msg
 )
 
 ## Generate services in the 'srv' folder
