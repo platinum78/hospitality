@@ -56,8 +56,8 @@ include_directories(
     ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(robot_info_node src/robot_info_node.cpp)
-target_link_libraries(robot_info_node ${catkin_LIBRARIES})
+add_executable(robot_manager_node src/robot_manager_node.cpp)
+target_link_libraries(robot_manager_node ${catkin_LIBRARIES})
 
 add_executable(map_server_node src/map_server_node.cpp)
 target_link_libraries(map_server_node ${catkin_LIBRARIES})

@@ -1,14 +1,15 @@
 #ifndef ROBOT_INFO_HPP_
 #define ROBOT_INFO_HPP_
 
-#include <ros/ros.h>
 #include <string>
-#include <hospitality_msgs/PointFloor.h>
+#include <list>
+
+#include "ros/ros.h"
+#include "hospitality_msgs/PointFloor.h"
+#include "hospitality_msgs/Task.h"
 
 struct RobotInfo
 {
-    enum { ROBOT_TYPE_POSTMAN, ROBOT_TYPE_ASSISTANT, ROBOT_TYPE_PORTER };
-
     int robot_id_;
     std::string robot_type_;
     std::string robot_name_;
@@ -16,6 +17,10 @@ struct RobotInfo
     int robot_tcp_port_;
     hospitality_msgs::PointFloor position_;
 
+    std::list<hospitality_msgs::Task *> task_queue_;
+    std::list<hospitality_msgs::PointFloor> visit_queue_;
+
+    enum { ROBOT_TYPE_POSTMAN, ROBOT_TYPE_ASSISTANT, ROBOT_TYPE_PORTER };
 };
 
 std::ostream &operator<<(std::ostream &out, const RobotInfo &info)

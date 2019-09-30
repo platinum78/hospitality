@@ -1,0 +1,6 @@
+# Mode: 1 == allocate / 0 == cancel
+
+int32 mode
+Task[] tasks
+---
+bool ack

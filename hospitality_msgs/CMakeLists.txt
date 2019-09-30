@@ -36,6 +36,7 @@ add_service_files(
   SetMode.srv
   SetPath.srv
   QueryPlace.srv
+  TaskReq.srv
 )
 
 ## Generate actions in the 'action' folder
