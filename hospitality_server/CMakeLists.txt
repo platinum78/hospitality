@@ -3,7 +3,7 @@ project(hospitality_server)
 add_compile_options(-std=c++11)
 
 find_package(
-  catkin REQUIRED 
+  catkin REQUIRED COMPONENTS
   roscpp
   rospy
   roslib
@@ -16,6 +16,10 @@ find_package(
 find_package(
   Eigen3 REQUIRED
 )
+
+# find_package(
+#   Qt5 REQUIRED COMPONENTS QtCore QtGui sQtWidgets
+# )
 
 ## Generate messages in the 'msg' folder
 # add_message_files(

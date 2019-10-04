@@ -18,7 +18,7 @@ struct RobotInfo
     hospitality_msgs::PointFloor position_;
 
     std::list<hospitality_msgs::Task *> task_queue_;
-    std::list<hospitality_msgs::PointFloor> visit_queue_;
+    std::list<int> visit_queue_;
 
     enum { ROBOT_TYPE_POSTMAN, ROBOT_TYPE_ASSISTANT, ROBOT_TYPE_PORTER };
 };

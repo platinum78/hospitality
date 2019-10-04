@@ -32,12 +32,12 @@ public:
     void ExecLoop(int frequency);
 
 public: // 작업을 할당하는 함수
-    void TaskAllocThreadFunc(std::map<int, RobotInfo> &robot_info,
-                             std::list<hospitality_msgs::Task> &task_buffer);
     double AssignTask(hospitality_msgs::Task *task_ptr);
     double AssignTaskTo(hospitality_msgs::Task *task_ptr, int robot_id);
 
 public: // 작업을 할당하는 알고리즘
+    double TaskAllocIntermediate(std::map<int, RobotInfo> &robot_info,
+                                 std::list<hospitality_msgs::Task> &task_buffer);
     double TaskAllocLRT(std::map<int, RobotInfo> &robot_info,
                         std::list<hospitality_msgs::Task> &task_buffer);
     double TaskAllocFIFO(std::map<int, RobotInfo> &robot_info,
@@ -128,18 +128,6 @@ RobotManagerNode::RobotManagerNode()
     // 서비스 클라이언트 초기화: 추후 클라이언트 추가 예정
 }
 
-void RobotManagerNode::TaskAllocThreadFunc(std::map<int, RobotInfo> &robot_info,
-                                           std::list<hospitality_msgs::Task> &task_buffer)
-{
-    std::unordered_map<int, hospitality_msgs::Task *> tasksByStartPlace;
-    std::list<hospitality_msgs::Task>::iterator taskIter;
-
-    // 각 작업을 출발 지점을 기준으로 모아서 정리
-    for (taskIter = task_buffer_.begin(); taskIter != task_buffer_.end(); taskIter++)
-        if (taskIter->task_type == 1)
-            tasksByStartPlace[taskIter->start_place_id] = &(*taskIter);
-}
-
 double RobotManagerNode::AssignTask(hospitality_msgs::Task *task_ptr)
 {
     std::unordered_map<int, hospitality_msgs::Task *> tasksByStartPlace;
@@ -149,59 +137,61 @@ double RobotManagerNode::AssignTask(hospitality_msgs::Task *task_ptr)
     for (taskIter = task_buffer_.begin(); taskIter != task_buffer_.end(); taskIter++)
         if (taskIter->task_type == 1)
             tasksByStartPlace[taskIter->start_place_id] = &(*taskIter);
+    
+    // Lookup each robot to find which suites best to move to starting points.
 }
 
 double RobotManagerNode::AssignTaskTo(hospitality_msgs::Task *task_ptr, int robot_id)
 {
-    std::unordered_map<int, hospitality_msgs::Task *> tasksByStartPlace;
+    std::unordered_map<int, std::list<hospitality_msgs::Task *> > tasksByStartPlace;
     std::list<hospitality_msgs::Task>::iterator taskIter;
 
     // 각 작업을 출발 지점을 기준으로 모아서 정리
     for (taskIter = task_buffer_.begin(); taskIter != task_buffer_.end(); taskIter++)
         if (taskIter->task_type == 1)
-            tasksByStartPlace[taskIter->start_place_id] = &(*taskIter);
+            tasksByStartPlace[taskIter->start_place_id].push_back(&(*taskIter));
 }
 
 double RobotManagerNode::TaskAllocLRT(std::map<int, RobotInfo> &robot_info,
                                       std::list<hospitality_msgs::Task> &task_buffer)
 {
-    std::unordered_map<int, hospitality_msgs::Task *> tasksByStartPlace;
+    std::unordered_map<int, std::list<hospitality_msgs::Task *> > tasksByStartPlace;
     std::list<hospitality_msgs::Task>::iterator taskIter;
 
     // 각 작업을 출발 지점을 기준으로 모아서 정리
     for (taskIter = task_buffer_.begin(); taskIter != task_buffer_.end(); taskIter++)
         if (taskIter->task_type == 1)
-            tasksByStartPlace[taskIter->start_place_id] = &(*taskIter);
+            tasksByStartPlace[taskIter->start_place_id].push_back(&(*taskIter));
 }
 
 double RobotManagerNode::TaskAllocFIFO(std::map<int, RobotInfo> &robot_info,
                                        std::list<hospitality_msgs::Task> &task_buffer)
 {
-    std::unordered_map<int, hospitality_msgs::Task *> tasksByStartPlace;
+    std::unordered_map<int, std::list<hospitality_msgs::Task *> > tasksByStartPlace;
     std::list<hospitality_msgs::Task>::iterator taskIter;
 
     // 각 작업을 출발 지점을 기준으로 모아서 정리
     for (taskIter = task_buffer_.begin(); taskIter != task_buffer_.end(); taskIter++)
         if (taskIter->task_type == 1)
-            tasksByStartPlace[taskIter->start_place_id] = &(*taskIter);
+            tasksByStartPlace[taskIter->start_place_id].push_back(&(*taskIter));
 }
 
 double RobotManagerNode::TaskAllocGreedyHeuristic(std::map<int, RobotInfo> &robot_info,
                                                   std::list<hospitality_msgs::Task> &task_buffer)
 {
-    std::unordered_map<int, hospitality_msgs::Task *> tasksByStartPlace;
+    std::unordered_map<int, std::list<hospitality_msgs::Task *> > tasksByStartPlace;
     std::list<hospitality_msgs::Task>::iterator taskIter;
 
     // 각 작업을 출발 지점을 기준으로 모아서 정리
     for (taskIter = task_buffer_.begin(); taskIter != task_buffer_.end(); taskIter++)
         if (taskIter->task_type == 1)
-            tasksByStartPlace[taskIter->start_place_id] = &(*taskIter);
+            tasksByStartPlace[taskIter->start_place_id].push_back(&(*taskIter));
 }
 
 double RobotManagerNode::TaskAllocExperimental01(std::map<int, RobotInfo> &robot_info,
                                                  std::list<hospitality_msgs::Task> &task_buffer)
 {
-
+    
 }
 
 double RobotManagerNode::TaskAllocExperimental02(std::map<int, RobotInfo> &robot_info,

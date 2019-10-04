@@ -58,22 +58,22 @@ MapServerNode::MapServerNode()
     ROS_INFO("%s", base_dir_.c_str());
     XmlRpc::XmlRpcValue paramDict;
     n.getParam("/main_server/map_server", paramDict);
-    map_bmp_path_.assign(paramDict["/pixelmap/map_bmp_relative_path"]);
-    map_csv_path_.assign(paramDict["/pixelmap/map_csv_relative_path"]);
+    map_bmp_path_ = std::string(paramDict["pixelmap"]["map_bmp_relative_path"]);
+    ROS_INFO("%s \n", map_bmp_path_.c_str());
+    map_csv_path_ = std::string(paramDict["pixelmap"]["map_csv_relative_path"]);
     ROS_INFO("Got parameters.");
-    map_bmp_path_ = base_dir_ + map_bmp_path_;
-    map_csv_path_ = base_dir_ + map_csv_path_;
+    std::string bmpPath = base_dir_ + map_bmp_path_;
+    std::string csvPath = base_dir_ + map_csv_path_;
+    ROS_INFO("Map BMP path is %s \n", bmpPath.c_str());
 
     // Initiate PixelMap.
-    const char *bmpPath = map_bmp_path_.c_str();
-    const char *csvPath = map_csv_path_.c_str();
-    double mapOriginRow = static_cast<double>(paramDict["/pixelmap/map_origin_row"]);
-    double mapOriginCol = static_cast<double>(paramDict["/pixelmap/map_origin_col"]);
-    double mapRoiWidth = static_cast<double>(paramDict["/pixelmap/map_roi_width"]);
-    double mapRoiHeight = static_cast<double>(paramDict["/pixelmap/map_roi_height"]);
-    double mapPadRadius = static_cast<double>(paramDict["/pixelmap/map_pad_radius"]);
+    int mapOriginRow = static_cast<int>(paramDict["pixelmap"]["map_origin_row"]);
+    int mapOriginCol = static_cast<int>(paramDict["pixelmap"]["map_origin_col"]);
+    double mapRoiWidth = static_cast<double>(paramDict["pixelmap"]["map_roi_width"]);
+    double mapRoiHeight = static_cast<double>(paramDict["pixelmap"]["map_roi_height"]);
+    double mapPadRadius = static_cast<double>(paramDict["pixelmap"]["map_pad_radius"]);
     pixel_map_.SetParams(mapOriginRow, mapOriginCol, mapRoiWidth, mapRoiHeight, mapPadRadius);
-    pixel_map_.ReadMapBmp(bmpPath);
+    pixel_map_.ReadMapBmp(bmpPath.c_str());
 
     // Read CSV file to get places information.
     

@@ -1,7 +1,7 @@
 import os, sys, csv, sqlite3
 from sql_statements import *
 
-class HospitalityDBHandler(object):
+class HospitalityDBHandlerNode(object):
     def __init__(self, db_name):
         db_existed = os.path.exists(db_name)
         self.db = sqlite3.connect(db_name)
@@ -30,5 +30,3 @@ class HospitalityDBHandler(object):
     
     def get_iterative_task(self, start_time, end_time):
         pass
-    
-    

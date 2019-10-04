@@ -503,17 +503,16 @@ double PixelMap::DijkstraPath(std::list<PixelIdx> &path_container, PixelIdx &sta
         {
             printf("Destination found! Constructing path list... \n");
             totalPathCost = pxCur.path_stat.cost_;
+            ROS_WARN("Flag 1");
             path_container.resize(0);
             do
             {
-                // printf("%d %d \n", pxIdx.row, pxIdx.col);
+                printf("%d %d \n", pxIdx.row, pxIdx.col);
                 path_container.push_front(pxIdx);
                 pxIdx = pixel_map_[startMapIdx][pxIdx.row][pxIdx.col].path_stat.prev_pixel_;
             } while (pxIdx.row != -1);
-            FILE *fp = fopen("/home/susung/Desktop/path.txt", "w");
-            for (std::list<PixelIdx>::iterator iter = path_container.begin(); iter != path_container.end(); iter++)
-                fprintf(fp, "%d %d \n", iter->row, iter->col);
-            fclose(fp);
+
+            ROS_WARN("Flag 3");
             printf("Finished! \n");
             return totalPathCost;
         }
