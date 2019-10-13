@@ -14,6 +14,7 @@
 
 #include "../include/map/graphmap.hpp"
 #include "../include/map/pixelmap.hpp"
+#include "../include/map/placeinfo.hpp"
 
 class MapServerNode
 {
@@ -30,7 +31,7 @@ public:
 private:
     GraphMap graph_map_;
     PixelMap pixel_map_;
-    
+    PlaceInfo place_info_;
 
 private:
     bool QueryPlaceHandler(hospitality_msgs::QueryPlace::Request &req,
@@ -53,20 +54,20 @@ private:
 
 MapServerNode::MapServerNode()
 {
-    // Get parameters from ROS param server.
     base_dir_ = ros::package::getPath("hospitality_server");
-    ROS_INFO("%s", base_dir_.c_str());
+    ROS_INFO("[map_server_node] Package base directory is: %s", base_dir_.c_str());
+    
+    // ROS 파라미터 서버에서 파라미터 수신
     XmlRpc::XmlRpcValue paramDict;
     n.getParam("/main_server/map_server", paramDict);
     map_bmp_path_ = std::string(paramDict["pixelmap"]["map_bmp_relative_path"]);
-    ROS_INFO("%s \n", map_bmp_path_.c_str());
     map_csv_path_ = std::string(paramDict["pixelmap"]["map_csv_relative_path"]);
-    ROS_INFO("Got parameters.");
     std::string bmpPath = base_dir_ + map_bmp_path_;
     std::string csvPath = base_dir_ + map_csv_path_;
-    ROS_INFO("Map BMP path is %s \n", bmpPath.c_str());
+    ROS_INFO("[map_server_node] Successfully received all required parameters.");
 
-    // Initiate PixelMap.
+    // PixelMap 초기화
+    ROS_INFO("[map_server_node] Opening bitmap file in the following path: %s", bmpPath.c_str());
     int mapOriginRow = static_cast<int>(paramDict["pixelmap"]["map_origin_row"]);
     int mapOriginCol = static_cast<int>(paramDict["pixelmap"]["map_origin_col"]);
     double mapRoiWidth = static_cast<double>(paramDict["pixelmap"]["map_roi_width"]);
@@ -74,11 +75,14 @@ MapServerNode::MapServerNode()
     double mapPadRadius = static_cast<double>(paramDict["pixelmap"]["map_pad_radius"]);
     pixel_map_.SetParams(mapOriginRow, mapOriginCol, mapRoiWidth, mapRoiHeight, mapPadRadius);
     pixel_map_.ReadMapBmp(bmpPath.c_str());
+    ROS_INFO("[map_server_node] Successfully initiated pixel map.");
 
-    // Read CSV file to get places information.
-    
+    // CSV 파일을 읽어 장소 정보를 읽어들이기
+    ROS_INFO("[map_server_node] Opening CSV file in the following path: %s", csvPath.c_str());
+    place_info_.ReadCSV(csvPath, 0.25);
+    ROS_INFO("[map_server_node] Successfully initiated place information handler.");
 
-    // Initiate GraphMap.
+    // GraphMap 초기화
     std::list<PixelMap::PlaceInfo *> &placeList = pixel_map_.GetPlaceList();
     std::list<PixelMap::PlaceInfo *>::iterator iter;
     for (iter = placeList.begin(); iter != placeList.end(); iter++)
@@ -87,8 +91,11 @@ MapServerNode::MapServerNode()
         graph_map_.AddNode(info_ptr->place_id, info_ptr->place_code, info_ptr->coordinate_);
     }
 
+    // Service 서버 초기화
     query_place_service_ = n.advertiseService("/query_place_service", &MapServerNode::QueryPlaceHandler, this);
     find_route_service_ = n.advertiseService("/find_route_service", &MapServerNode::FindRouteHandler, this);
+
+    ROS_INFO("[map_server_node] Node successfully started.");
 }
 
 bool MapServerNode::QueryPlaceHandler(hospitality_msgs::QueryPlace::Request &req,

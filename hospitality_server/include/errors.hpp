@@ -4,11 +4,11 @@
 #include <string>
 #include <exception>
 
-class ZeroDivError : public std::exception
+class ZeroDivException : public std::exception
 {
 public:
-    ZeroDivError(const char *msg = "Division by zero is unacceptable.") : msg_(msg) {}
-    // ~ZeroDivError();
+    ZeroDivException(const char *msg = "Division by zero is unacceptable.") : msg_(msg) {}
+    // ~ZeroDivException();
     const char *what() { return msg_.c_str(); }
 
 private:
@@ -16,11 +16,10 @@ private:
 };
 
 
-class DimensionError : public std::exception
+class OutOfBoundException : public std::exception
 {
 public:
-    DimensionError(const char *msg = "Dimension mismatch.") : msg_(msg) {}
-    // ~DimensionError();
+    OutOfBoundException(const char *msg = "Out of bound.") : msg_(msg) {}
     const char *what() { return msg_.c_str(); }
 
 private:
@@ -28,11 +27,23 @@ private:
 };
 
 
-class ArgumentError : public std::exception
+class DimensionException : public std::exception
 {
 public:
-    ArgumentError(const char *msg = "Invalid argument(s).") : msg_(msg) {}
-    // ~ArgumentError();
+    DimensionException(const char *msg = "Dimension mismatch.") : msg_(msg) {}
+    // ~DimensionException();
+    const char *what() { return msg_.c_str(); }
+
+private:
+    std::string msg_;
+};
+
+
+class ArgumentException : public std::exception
+{
+public:
+    ArgumentException(const char *msg = "Invalid argument(s).") : msg_(msg) {}
+    // ~ArgumentException();
     const char *what() const throw() { return msg_.c_str(); }
 
 private:

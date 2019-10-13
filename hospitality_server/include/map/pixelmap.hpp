@@ -297,7 +297,7 @@ int PixelMap::ReadMapBmp(const char *path)
         else if (pixel_width_ && pixel_height_)
         {
             if (!(pixel_width_ == image.TellWidth() && pixel_height_ == image.TellHeight()))
-                throw DimensionError("Map resolution is not consistent.");
+                throw DimensionException("Map resolution is not consistent.");
         }
         else
         {
@@ -344,7 +344,7 @@ int PixelMap::ReadMapCsv(const char *file_path)
     } while (buf != '\n');
 
     if (commaCnt != MAP_CSV_COLUMNS - 1)
-        throw ArgumentError("Number of columns in CSV file is improper.");
+        throw ArgumentException("Number of columns in CSV file is improper.");
     
     fseek(fp, 0, SEEK_SET);
     double x, y;

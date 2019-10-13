@@ -6,7 +6,7 @@ main_server:
     map_server:
         pixelmap:
             map_bmp_relative_path:        "/data/map/bitmap"
-            map_csv_relative_path:        "/data/map/csv/place_list.csv"
+            map_csv_relative_path:        "/data/map/csv/places.csv"
             map_origin_row:               1175
             map_origin_col:               1470
             map_roi_width:                52.755

@@ -6,6 +6,7 @@
 #include <list>
 
 #include "hospitality_msgs/PointFloor.h"
+#include "../utils/csv.hpp"
 #include "../errors.hpp"
 
 class PlaceInfo
@@ -18,7 +19,7 @@ public:
     enum { SEARCH_ID, SEARCH_NAME, SEARCH_CODE };
 
 public:
-    int ReadCSV(std::string &path);
+    int ReadCSV(std::string &path, double coordinate_scale);
 
 public:
     
@@ -40,34 +41,39 @@ struct PlaceInfo::Item
     hospitality_msgs::PointFloor location_;
 };
 
-int PlaceInfo::ReadCSV(std::string &path)
+int PlaceInfo::ReadCSV(std::string &csv_path, double coordinate_scale = 1.0)
 {
-    // CSV 파일은 장소 ID, 호실 번호, 장소 이름, x 좌표, y 좌표, 층  순서로 구성됨.
-    FILE *fp = fopen(path.c_str(), "r");
-    char placeCodeBuf[100], placeNameBuf[100];
-    long placeID;
-    std::string placeCode, placeName;
-    double x, y;
-    int floor;
+    CSVParser parser(csv_path);
+    std::list<std::list<std::string> > dataContainer;
+    parser.Parse(dataContainer);
 
-    fseek(fp, 0, SEEK_SET);
-    while (fscanf(fp, "%ld,%s,%s,%lf,%lf,%d", &placeID, placeCodeBuf, placeNameBuf, &x, &y, &floor) == 5)
+    std::list<std::list<std::string> >::iterator rowIter;
+    std::list<std::string>::iterator colIter;
+    Item *pItem;
+
+    for (rowIter = dataContainer.begin(); rowIter != dataContainer.end(); rowIter++)
     {
-        Item *item_ptr = new Item;
-        item_ptr->place_id_ = placeID;
-        item_ptr->location_.x = x;
-        item_ptr->location_.y = y;
-        item_ptr->location_.floor = floor;
-        item_ptr->place_code_.assign(placeCodeBuf);
-        item_ptr->place_code_.assign(placeNameBuf);
-        place_list_.push_back(item_ptr);
+        if (rowIter->size() == 4)
+        {
+            pItem = new Item;
+            colIter = rowIter->begin();
+        }
+        else continue;
+        
+        pItem->place_id_ = atoll(colIter->c_str());
+        colIter++;
+        pItem->place_name_.assign(*colIter);
+        colIter++;
+        pItem->location_.x = atof(colIter->c_str()) * coordinate_scale;
+        colIter++;
+        pItem->location_.y = atof(colIter->c_str()) * coordinate_scale;
+        pItem->location_.floor = 1;
     }
-
-    return place_list_.size();
 }
 
 hospitality_msgs::PointFloor &PlaceInfo::QueryPlace(long place_id)
 {
+    
     std::list<Item *>::iterator iter;
     for (iter = place_list_.begin(); iter != place_list_.end(); iter++)
     {

@@ -319,7 +319,7 @@ void GraphMap::FindRoute(std::list<Node *> &path_container, int n1_id, int n2_id
         DijkstraPath(path_container, n1_ptr, n2_ptr, COST_DIST); return;
 
     default:
-        throw ArgumentError("Given number is not a predefined method index.");
+        throw ArgumentException("Given number is not a predefined method index.");
     };
 }
 
@@ -343,7 +343,7 @@ void GraphMap::FindRoute(std::list<Node *> &path_container, char *n1_code, char 
     case PATH_DIJKSTRA:
         DijkstraPath(path_container, n1_ptr, n2_ptr, COST_DIST); return;
     default:
-        throw ArgumentError("Given number is not a predefined method index.");
+        throw ArgumentException("Given number is not a predefined method index.");
     };
 }
 
